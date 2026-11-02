@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<!-- 設計問題：LearnLoop 的「週回顧」螢幕長什麼樣子？同一週 mock 資料（第 44 週 · 微積分（二））的三個變體，?variant=1 週循環時間軸（循環圖＋五階段時間軸＋紅筆落差註記）／?variant=2 計畫對實際報告（比較矩陣＋調整追蹤）／?variant=3 引導反思對話（蘇格拉底提問流程）。 -->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LearnLoop 週回顧 · 一次性 UI 原型（第一版）</title>
+<style>
+/* ============================================================
+   共享 scale（三個變體共用的間距／字級／字型／動效）
+   ============================================================ */
+:root{
+  --sp-1:4px;  --sp-2:8px;  --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+  --t-xs:12px; --t-sm:13px; --t-md:14px; --t-base:15px;
+  --t-lg:17px; --t-xl:20px; --t-2xl:24px; --t-3xl:32px;
+  --lh-1:1.25; --lh-2:1.5;  --lh-3:1.7;
+  --serif:"Songti TC","Noto Serif TC",ui-serif,Georgia,"Times New Roman",serif;
+  --sans:system-ui,-apple-system,"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --chrome-ink:#F4F1E8;
+  --chrome-bg:#23262E;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--sans);font-size:var(--t-base);line-height:var(--lh-2);
+  color:#222;background:var(--chrome-bg);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+h1,h2,h3,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+button{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+/* ---------- 原型 banner（共享 chrome，非設計內容） ---------- */
+[data-prototype-banner]{
+  display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);align-items:center;justify-content:center;
+  background:var(--chrome-bg);color:var(--chrome-ink);
+  font-size:var(--t-xs);letter-spacing:.04em;line-height:var(--lh-2);
+  padding:var(--sp-2) var(--sp-3);position:relative;z-index:60;
+}
+[data-prototype-banner] .mock-chip{
+  border:1px solid rgba(244,241,232,.45);border-radius:999px;
+  padding:1px var(--sp-2);font-weight:600;letter-spacing:.06em;
+}
+
+/* ---------- 變體容器 ---------- */
+.variant{min-height:100vh;padding-bottom:var(--sp-4)}
+.variant[hidden]{display:none!important}
+
+/* ---------- 浮動變體切換器（共享 chrome） ---------- */
+.switcher{
+  position:fixed;bottom:var(--sp-4);left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:var(--sp-1);z-index:100;
+  background:rgba(15,17,22,.94);
+  border:1px solid rgba(255,255,255,.28);border-radius:999px;
+  padding:var(--sp-1) var(--sp-2);
+  box-shadow:0 2px 6px rgba(0,0,0,.38),0 10px 28px rgba(0,0,0,.45);
+}
+.switcher button{
+  width:32px;height:32px;border-radius:50%;border:0;background:transparent;
+  display:grid;place-items:center;cursor:pointer;color:#fff;
+}
+.switcher button:hover{background:rgba(255,255,255,.16)}
+.switcher svg{display:block}
+.switcher [data-variant-label]{
+  font-family:var(--mono);font-size:var(--t-sm);font-weight:600;color:#fff;
+  padding:0 var(--sp-3);min-width:150px;text-align:center;white-space:nowrap;
+}
+
+/* ---------- 動效（可還原：reduced-motion 時關閉） ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+@keyframes growx{from{transform:scaleX(0)}}
+.anim .rise{animation:rise .55s var(--ease-out) var(--d,0ms) backwards}
+.anim .bar-fill{transform-origin:left center;animation:growx .8s var(--ease-out) var(--d,0ms) backwards}
+@media (prefers-reduced-motion:reduce){
+  .anim .rise,.anim .bar-fill{animation:none}
+  .anim .loop-circle{animation:none;stroke-dashoffset:0}
+}
+
+/* ============================================================
+   變體 1 · 週循環時間軸：計畫手帳（planner）世界
+   冷調紙面、墨藍黑、襯線標題、橫線格、紅筆註記、綠墨循環
+   ============================================================ */
+.v1{
+  --bg:#F3F4EE; --surface:#FCFCF8; --ink:#232B33; --ink-soft:#5A6470;
+  --line:#DADBCF; --line-strong:#C6C8BA;
+  --accent:#1E6E50; --accent-soft:#E2EFE7;
+  --pen:#B23B2E; --pen-soft:#F7E7E3;
+  --highlight:#F3E9C8;
+  --r:6px;
+  --shadow-1:0 1px 2px rgba(35,43,51,.05),0 2px 8px rgba(35,43,51,.06);
+  background:var(--bg);
+  color:var(--ink);
+  position:relative;
+}
+.v1::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,transparent 0 31px,rgba(198,200,186,.4) 31px 32px);
+}
+.v1 ::selection{background:var(--highlight)}
+.v1 .wrap{max-width:700px;margin:0 auto;padding:var(--sp-6) var(--sp-4) calc(var(--sp-8) + 72px);position:relative;z-index:1}
+.v1 .head h1{font-family:var(--serif);font-size:44px;font-weight:700;line-height:1.12;letter-spacing:0}
+.v1 .head .meta{margin-top:var(--sp-3);font-size:var(--t-md);color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3)}
+.v1 .head .meta b{color:var(--ink);font-weight:600}
+.v1 .head .rule{margin-top:var(--sp-4);border-top:2px solid var(--ink)}
+
+/* 週循環 hero 圖（頁面視覺峰值：循環本身） */
+.loop-hero{position:relative;margin-top:var(--sp-5)}
+.loop-hero svg{display:block;width:100%;height:auto}
+.loop-hero .lh-name{font-size:17px;font-weight:700;fill:var(--ink);font-family:var(--serif)}
+.loop-hero .lh-sub{font-size:10.5px;fill:var(--ink-soft);font-family:var(--mono)}
+.loop-hero .lh-num{font-size:12px;font-weight:700;font-family:var(--mono)}
+.loop-hero .lh-center{font-size:26px;font-weight:700;fill:var(--ink);font-family:var(--serif)}
+.loop-hero .lh-center-sub{font-size:12px;fill:var(--ink-soft);font-family:var(--mono)}
+.anim .loop-circle{stroke-dasharray:679;stroke-dashoffset:679;animation:loopdraw 1s var(--ease-out) .25s forwards}
+@keyframes loopdraw{to{stroke-dashoffset:0}}
+
+/* 循環索引（sticky） */
+.loop-nav{
+  position:sticky;top:var(--sp-2);z-index:40;
+  display:flex;justify-content:space-between;gap:var(--sp-2);
+  background:var(--bg);border-bottom:1px solid var(--line-strong);
+  margin-top:var(--sp-5);padding:var(--sp-2) 0;
+}
+.loop-nav a{
+  display:flex;align-items:center;gap:var(--sp-1);
+  font-size:var(--t-sm);text-decoration:none;color:var(--ink-soft);
+  padding:var(--sp-1) 0;
+}
+.loop-nav a .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink-soft);background:var(--bg);transition:background .2s,border-color .2s}
+.loop-nav a.active{color:var(--accent);font-weight:600}
+.loop-nav a.active .dot{background:var(--accent);border-color:var(--accent)}
+
+/* 時間軸主體 */
+.stages{position:relative;margin-top:var(--sp-5)}
+.stages::before{
+  content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line-strong);
+}
+.stage{position:relative;padding-left:var(--sp-6);margin-bottom:var(--sp-6)}
+.stage::before{
+  content:"";position:absolute;left:0;top:6px;width:12px;height:12px;border-radius:50%;
+  background:var(--bg);border:2px solid var(--ink);
+}
+.stage h2{font-family:var(--serif);font-size:var(--t-xl);font-weight:700;line-height:var(--lh-1);display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap}
+.stage h2 .en{font-family:var(--mono);font-size:var(--t-xs);font-weight:400;letter-spacing:.14em;color:var(--ink-soft)}
+.stage .tagline{font-size:var(--t-md);color:var(--ink-soft);margin-top:var(--sp-1)}
+.stage .body{margin-top:var(--sp-4)}
+
+/* 統計塊（手帳數字格） */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2)}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:var(--sp-3)}
+.stat .k{font-size:var(--t-xs);color:var(--ink-soft);letter-spacing:.04em}
+.stat .v{font-family:var(--serif);font-size:32px;font-weight:700;line-height:1.2;margin-top:var(--sp-1);font-variant-numeric:tabular-nums}
+.stat .v small{font-size:var(--t-md);font-weight:400;color:var(--ink-soft);margin-left:2px}
+.v1 .note{margin-top:var(--sp-3);font-size:var(--t-md);color:var(--ink-soft)}
+.v1 .note b{color:var(--ink);font-weight:600}
+
+/* 每日迷你格 */
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--sp-1);margin-top:var(--sp-3)}
+.day{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--sp-2) 0}
+.day .d{font-size:var(--t-xs);color:var(--ink-soft)}
+.day .dbar{width:10px;background:var(--accent);border-radius:2px}
+.day .h{font-family:var(--mono);font-size:var(--t-xs);font-variant-numeric:tabular-nums}
+.day .p{font-size:var(--t-xs);color:var(--ink-soft)}
+.quiz-line{margin-top:var(--sp-7);font-size:var(--t-md);color:var(--ink-soft)}
+.quiz-line b{color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* 落差註記（紅筆） */
+.gaps{display:grid;gap:var(--sp-2)}
+.gap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:var(--sp-3) var(--sp-4)}
+.gap .g-top{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap}
+.gap .g-name{font-weight:700;font-size:var(--t-md)}
+.gap .g-val{margin-left:auto;font-family:var(--serif);font-weight:700;font-size:26px;color:var(--pen);font-variant-numeric:tabular-nums}
+.gap .g-sub{margin-top:var(--sp-1);font-size:var(--t-sm);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.gap .g-sub b{color:var(--pen);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;font-weight:600}
+.conclusion{
+  margin-top:var(--sp-3);display:inline-block;background:var(--highlight);
+  border-radius:var(--r);padding:var(--sp-2) var(--sp-4);
+  font-size:var(--t-md);font-weight:600;line-height:var(--lh-2);
+}
+.conclusion .pen-u{color:var(--pen);text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+
+/* 反思（系統提問＋學生選擇） */
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:var(--sp-4)}
+.ask .q{font-size:var(--t-lg);font-weight:600;line-height:var(--lh-2)}
+.ask .q .who{display:block;font-size:var(--t-xs);font-weight:400;color:var(--ink-soft);letter-spacing:.06em;margin-bottom:var(--sp-1)}
+.options{margin-top:var(--sp-3);display:grid;gap:var(--sp-2)}
+.opt{display:flex;align-items:center;gap:var(--sp-2);border:1px solid var(--line);border-radius:var(--r);padding:var(--sp-2) var(--sp-3);font-size:var(--t-md);background:var(--bg)}
+.opt .radio{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink-soft);flex:none;display:grid;place-items:center}
+.opt.selected{border-color:var(--accent);background:var(--accent-soft)}
+.opt.selected .radio{border-color:var(--accent)}
+.opt .pick{margin-left:auto;font-size:var(--t-xs);color:var(--pen);font-weight:600;white-space:nowrap}
+.opt svg{flex:none}
+.student-note{
+  margin-top:var(--sp-3);font-family:var(--serif);font-style:italic;font-size:var(--t-md);
+  background:var(--pen-soft);border-radius:var(--r);padding:var(--sp-3) var(--sp-4);color:#7C2A20;
+}
+.student-note .who{font-style:normal;font-size:var(--t-xs);color:var(--pen);letter-spacing:.06em;display:block;margin-bottom:2px}
+
+/* 調整（下週策略＋印章） */
+.adjust-list{display:grid;gap:var(--sp-2)}
+.adjust-list li{display:flex;gap:var(--sp-2);align-items:baseline;font-size:var(--t-md);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--sp-2) var(--sp-3);box-shadow:var(--shadow-1)}
+.adjust-list li svg{flex:none;align-self:center}
+.adjust-list b{font-variant-numeric:tabular-nums}
+.stamp{
+  display:inline-block;margin-top:var(--sp-4);
+  border:2px dashed var(--accent);color:var(--accent);border-radius:var(--r);
+  padding:var(--sp-2) var(--sp-4);font-weight:700;font-size:var(--t-sm);letter-spacing:.14em;
+  transform:rotate(-2deg);
+}
+.loop-back{margin-top:var(--sp-6);display:flex;align-items:center;gap:var(--sp-2);font-size:var(--t-md);color:var(--ink-soft)}
+.loop-back svg{flex:none;color:var(--accent)}
+.foot-note{margin-top:var(--sp-5);font-size:var(--t-xs);color:var(--ink-soft);border-top:1px solid var(--line-strong);padding-top:var(--sp-3)}
+
+/* ============================================================
+   變體 2 · 計畫對實際報告：資料報告（report）世界
+   冷灰底、無襯線 UI、等寬數字、報告藍、計畫斜紋 vs 實際實心
+   ============================================================ */
+.v2{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#182230; --ink-soft:#525E75;
+  --line:#D7DDE6; --line-strong:#B9C2D0;
+  --accent:#1D4F91; --accent-soft:#E3EAF5;
+  --good:#1E7A46; --good-soft:#E1F1E8;
+  --bad:#B03A2E;  --bad-soft:#F7E6E3;
+  --warn:#9A6700; --warn-soft:#F6EDD8;
+  --neutral:#525E75; --neutral-soft:#EDF0F4;
+  --r:10px;
+  --shadow-1:0 1px 2px rgba(24,34,48,.05),0 2px 8px rgba(24,34,48,.05);
+  background:var(--bg);color:var(--ink);
+}
+.v2 ::selection{background:var(--accent-soft)}
+.v2 .wrap{max-width:780px;margin:0 auto;padding:var(--sp-6) var(--sp-4) calc(var(--sp-8) + 72px)}
+.masthead{border-top:2px solid var(--ink);border-bottom:1px solid var(--line-strong);padding:var(--sp-4) 0 var(--sp-3)}
+.masthead .row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap}
+.masthead h1{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:var(--lh-1)}
+.masthead .wk{font-family:var(--mono);font-size:var(--t-md);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.meta-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-1) var(--sp-4);margin-top:var(--sp-3);font-size:var(--t-sm)}
+.meta-grid div{display:flex;gap:var(--sp-2);border-bottom:1px dotted var(--line-strong);padding-bottom:4px}
+.meta-grid .k{color:var(--ink-soft);white-space:nowrap}
+.meta-grid .v{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.v2 h2{font-size:var(--t-lg);font-weight:700;margin-top:var(--sp-6);margin-bottom:var(--sp-3);display:flex;align-items:baseline;gap:var(--sp-2)}
+.v2 h2 .en{font-family:var(--mono);font-size:var(--t-xs);font-weight:400;letter-spacing:.12em;color:var(--ink-soft)}
+
+/* 比較矩陣 */
+.metrics{display:grid;gap:var(--sp-3)}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:var(--sp-4)}
+.metric .m-head{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.metric .m-name{font-weight:700;font-size:var(--t-md)}
+.chip{margin-left:auto;font-size:var(--t-xs);font-weight:700;border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.neutral{background:var(--neutral-soft);color:var(--neutral);border:1px solid var(--line-strong)}
+.bars{margin-top:var(--sp-3);display:grid;gap:var(--sp-2)}
+.brow{display:flex;align-items:center;gap:var(--sp-2)}
+.brow .bl{width:32px;font-size:var(--t-xs);color:var(--ink-soft);flex:none}
+.bar{flex:1;height:20px;background:var(--line);border-radius:10px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px}
+.bar i.plan{background:repeating-linear-gradient(135deg,var(--accent-soft) 0 5px,var(--line) 5px 10px);border:1px solid var(--accent-soft)}
+.bar i.actual{background:var(--accent)}
+.brow .bv{width:64px;text-align:right;font-family:var(--mono);font-size:var(--t-sm);font-weight:700;font-variant-numeric:tabular-nums;flex:none}
+.legend{margin-top:var(--sp-2);font-size:var(--t-xs);color:var(--ink-soft);display:flex;gap:var(--sp-4)}
+.legend span{display:inline-flex;align-items:center;gap:var(--sp-1)}
+.legend .sw{width:14px;height:8px;border-radius:4px;display:inline-block}
+.legend .sw.plan{background:repeating-linear-gradient(135deg,var(--accent-soft) 0 3px,var(--line) 3px 6px);border:1px solid var(--accent-soft)}
+.legend .sw.actual{background:var(--accent)}
+
+/* 發現清單 */
+.findings{display:grid;gap:var(--sp-2)}
+.findings li{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--sp-3) var(--sp-4);font-size:var(--t-md);box-shadow:var(--shadow-1)}
+.findings b{font-variant-numeric:tabular-nums}
+.findings .big{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--bad)}
+
+/* 每日表格 */
+.dtable{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-1)}
+.dtable th,.dtable td{padding:var(--sp-2) var(--sp-3);text-align:right;font-size:var(--t-sm);border-bottom:1px solid var(--line)}
+.dtable th:first-child,.dtable td:first-child{text-align:left}
+.dtable thead th{background:var(--accent-soft);color:var(--accent);font-size:var(--t-xs);letter-spacing:.06em}
+.dtable tbody tr:last-child td{border-bottom:0}
+.dtable td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dtable .tot td{font-weight:700;border-top:2px solid var(--line-strong);background:#F7F9FC}
+.dtable .quiz{color:var(--bad);font-weight:700;font-family:var(--mono)}
+
+/* 調整追蹤 */
+.tracker{display:grid;gap:var(--sp-3)}
+.trk{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-1);padding:var(--sp-4)}
+.trk .t-head{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.trk .t-name{font-weight:700;font-size:var(--t-md)}
+.trk .t-src{margin-top:var(--sp-1);font-size:var(--t-sm);color:var(--ink-soft)}
+.trk .t-eff{margin-top:var(--sp-2);font-size:var(--t-sm);display:grid;gap:2px}
+.trk .t-eff b{font-variant-numeric:tabular-nums}
+.trk .t-verdict{margin-top:var(--sp-3);display:flex;align-items:center;gap:var(--sp-2);font-size:var(--t-sm);color:var(--ink-soft)}
+.v2 .foot-note{margin-top:var(--sp-6);font-size:var(--t-xs);color:var(--ink-soft);border-top:1px solid var(--line-strong);padding-top:var(--sp-3)}
+
+/* ============================================================
+   變體 3 · 引導反思對話：深夜白板（night desk）世界
+   深色板面、燈光頂光、粉筆黃提問、綠色確認、單欄對話
+   ============================================================ */
+.v3{
+  --bg:#161922; --surface:#20242F; --surface-2:#262B38;
+  --ink:#E9EBF2; --ink-soft:#A6AEBF; --line:#343B4A;
+  --chalk:#E5C558; --chalk-soft:rgba(229,197,88,.14);
+  --ok:#5CB58A; --ok-soft:rgba(92,181,138,.16);
+  --shadow-1:0 2px 10px rgba(0,0,0,.35);
+  --r:14px;
+  background:radial-gradient(1100px 480px at 50% -12%,rgba(229,197,88,.06),transparent 70%),var(--bg);
+  color:var(--ink);
+}
+.v3 ::selection{background:rgba(229,197,88,.3)}
+.v3 .wrap{max-width:620px;margin:0 auto;padding:var(--sp-6) var(--sp-4) calc(var(--sp-8) + 88px)}
+.v3 .head h1{font-size:30px;font-weight:700;line-height:var(--lh-1)}
+.v3 .head .meta{margin-top:var(--sp-2);font-size:var(--t-md);color:var(--ink-soft)}
+.v3 .chalkmark{text-decoration:underline;text-decoration-color:var(--chalk);text-decoration-thickness:4px;text-underline-offset:5px}
+
+/* 步驟脊 */
+.steps{display:flex;gap:var(--sp-2);margin-top:var(--sp-5);flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:var(--sp-2);border:1px solid var(--line);border-radius:999px;padding:var(--sp-1) var(--sp-3);font-size:var(--t-sm);color:var(--ink-soft);background:var(--surface)}
+.step .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-xs);font-weight:700;border:1px solid var(--line);color:var(--ink-soft);font-family:var(--mono)}
+.step.done{color:var(--ink);border-color:var(--ok)}
+.step.done .n{background:var(--ok);border-color:var(--ok);color:#10231A}
+.step.pending .n{border-color:var(--chalk);color:var(--chalk)}
+
+/* 對話條目 */
+.thread{margin-top:var(--sp-5);display:grid;gap:var(--sp-3)}
+.entry{border-radius:var(--r);padding:var(--sp-4)}
+.entry .who{font-size:var(--t-xs);letter-spacing:.1em;margin-bottom:var(--sp-2);display:flex;align-items:center;gap:var(--sp-1)}
+.entry .who::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor}
+.e-sys{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-1)}
+.e-sys .who{color:var(--chalk)}
+.e-stu{background:var(--surface-2);border:1px solid var(--line);box-shadow:var(--shadow-1)}
+.e-stu .who{color:var(--ok)}
+.e-sys p,.e-stu p{font-size:var(--t-md);line-height:var(--lh-3)}
+.e-sys p.q-big{font-size:var(--t-xl);font-weight:600}
+
+/* 資料卡（系統摘要） */
+.datacard{display:grid;gap:var(--sp-2);margin-top:var(--sp-2)}
+.drow{display:flex;align-items:baseline;gap:var(--sp-2);font-size:var(--t-md);line-height:1.35;border-bottom:1px dashed var(--line);padding-bottom:var(--sp-4)}
+.drow:last-child{border-bottom:0;padding-bottom:var(--sp-2)}
+.drow .dv{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+.drow .dp{font-family:var(--mono);font-size:var(--t-sm);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.drow .dv.neg{color:var(--chalk)}
+
+/* 原因選項 */
+.causes{display:grid;gap:var(--sp-2);margin-top:var(--sp-3)}
+.cause{
+  display:flex;align-items:center;gap:var(--sp-2);width:100%;text-align:left;cursor:pointer;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r);
+  padding:var(--sp-3);font-size:var(--t-md);
+}
+.cause:hover{border-color:var(--ink-soft)}
+.cause .radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink-soft);flex:none;display:grid;place-items:center}
+.cause.selected{border-color:var(--ok);background:var(--ok-soft)}
+.cause.selected .radio{border-color:var(--ok);background:var(--ok);box-shadow:inset 0 0 0 3px var(--bg)}
+.cause .mark{margin-left:auto;display:none}
+.cause.selected .mark{display:block;color:var(--ok)}
+.stu-note{margin-top:var(--sp-3);font-size:var(--t-md);color:var(--ink);background:var(--bg);border:1px dashed var(--line);border-radius:var(--r);padding:var(--sp-3)}
+.stu-note .who{font-size:var(--t-xs);letter-spacing:.1em;color:var(--ok);display:block;margin-bottom:4px}
+
+/* 建議計畫卡 */
+.plan-card{margin-top:var(--sp-2);display:grid;gap:var(--sp-2)}
+.plan-row{display:flex;align-items:baseline;gap:var(--sp-2);font-size:var(--t-md);background:var(--bg);border-radius:var(--r);padding:var(--sp-2) var(--sp-3)}
+.plan-row b{margin-left:auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:var(--t-md)}
+.track-line{font-size:var(--t-sm);color:var(--ink-soft);margin-top:var(--sp-2)}
+
+/* 確認操作 */
+.confirm-zone{margin-top:var(--sp-4);display:grid;gap:var(--sp-2);justify-items:start}
+.confirm-btn{
+  cursor:pointer;border:0;border-radius:999px;background:var(--ok);color:#10231A;
+  font-weight:700;font-size:var(--t-md);padding:var(--sp-3) var(--sp-6);
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
+}
+.confirm-btn:hover{filter:brightness(1.08)}
+.confirm-btn:disabled{cursor:default;background:var(--ok-soft);color:var(--ok);box-shadow:none;border:1px solid var(--ok)}
+.confirm-note{display:none;font-size:var(--t-sm);color:var(--ok)}
+.confirm-zone.confirmed .confirm-note{display:block}
+.v3 .foot-note{margin-top:var(--sp-6);font-size:var(--t-xs);color:var(--ink-soft);border-top:1px solid var(--line);padding-top:var(--sp-3)}
+
+/* ---------- 窄螢幕 ---------- */
+@media (max-width:480px){
+  .v1 .head h1{font-size:30px}
+  .stat .v{font-size:var(--t-2xl)}
+  .loop-hero .lh-sub{display:none}
+  .masthead .row{flex-direction:column;gap:var(--sp-1)}
+  .meta-grid{grid-template-columns:1fr}
+  .dtable th,.dtable td{padding:var(--sp-2) var(--sp-2)}
+  .switcher [data-variant-label]{min-width:120px;font-size:var(--t-xs)}
+}
+@media (max-width:600px){
+  /* 窄螢幕：每日格整體下移，避開底部固定變體切換列 */
+  .v1 .days{margin-top:calc(var(--sp-7) + 8px)}
+}
+</style>
+</head>
+<body>
+
+<div data-prototype-banner>
+  <span>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</span>
+  <span class="mock-chip">示意資料 · 合成 mock</span>
+</div>
+
+<section class="variant v1" id="variant-1">
+  <div class="wrap">
+    <header class="head rise" style="--d:0ms">
+      <h1>第 44 週 · 週回顧</h1>
+      <div class="meta">
+        <span><b>2026/10/26（一）– 11/01（日）</b></span>
+        <span>科目：<b>微積分（二）</b></span>
+        <span>本週主題：<b>分部積分</b>（新主題）</span>
+      </div>
+      <div class="rule"></div>
+    </header>
+
+    <figure class="loop-hero rise" style="--d:40ms" role="img" aria-label="第 44 週週循環：計畫、監控、落差、反思、調整五階段成環；落差階段標紅：時數 +3 小時、題量 −34 題、正確率 −20 點，系統標記長時低效訊號">
+      <svg viewBox="0 0 640 356" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle class="loop-circle" cx="320" cy="176" r="108" fill="none" style="stroke:var(--accent)" stroke-width="2" opacity=".5"/>
+        <g style="fill:var(--accent)" opacity=".85">
+          <polygon points="0,-5 9,0 0,5" transform="translate(384,89) rotate(36)"/>
+          <polygon points="0,-5 9,0 0,5" transform="translate(423,209) rotate(108)"/>
+          <polygon points="0,-5 9,0 0,5" transform="translate(320,284) rotate(180)"/>
+          <polygon points="0,-5 9,0 0,5" transform="translate(197,209) rotate(252)"/>
+          <polygon points="0,-5 9,0 0,5" transform="translate(257,89) rotate(324)"/>
+        </g>
+        <text class="lh-center" x="320" y="172" text-anchor="middle">分部積分</text>
+        <text class="lh-center-sub" x="320" y="196" text-anchor="middle">新主題 · 第 44 週</text>
+        <g>
+          <circle cx="320" cy="68" r="26" style="fill:var(--surface);stroke:var(--accent)" stroke-width="2.5"/>
+          <text class="lh-num" x="320" y="73" text-anchor="middle" style="fill:var(--accent)">1</text>
+          <text class="lh-name" x="320" y="22" text-anchor="middle">計畫</text>
+          <text class="lh-sub" x="320" y="38" text-anchor="middle">10/26 設定</text>
+        </g>
+        <g>
+          <circle cx="423" cy="143" r="26" style="fill:var(--surface);stroke:var(--accent)" stroke-width="2.5"/>
+          <text class="lh-num" x="423" y="148" text-anchor="middle" style="fill:var(--accent)">2</text>
+          <text class="lh-name" x="459" y="140" text-anchor="start">監控</text>
+          <text class="lh-sub" x="459" y="156" text-anchor="start">實際 8h · 46 題</text>
+        </g>
+        <g>
+          <circle cx="384" cy="263" r="34" style="fill:var(--pen-soft);stroke:var(--pen)" stroke-width="3"/>
+          <text class="lh-num" x="384" y="268" text-anchor="middle" style="fill:var(--pen)">3</text>
+          <text class="lh-name" x="384" y="322" text-anchor="middle" style="fill:var(--pen)">落差</text>
+          <text class="lh-sub" x="384" y="338" text-anchor="middle">3 項偏差</text>
+        </g>
+        <g>
+          <circle cx="257" cy="263" r="26" style="fill:var(--surface);stroke:var(--accent)" stroke-width="2.5"/>
+          <text class="lh-num" x="257" y="268" text-anchor="middle" style="fill:var(--accent)">4</text>
+          <text class="lh-name" x="257" y="322" text-anchor="middle">反思</text>
+          <text class="lh-sub" x="257" y="338" text-anchor="middle">原因已確認</text>
+        </g>
+        <g>
+          <circle cx="197" cy="143" r="26" style="fill:var(--surface);stroke:var(--accent)" stroke-width="2.5"/>
+          <text class="lh-num" x="197" y="148" text-anchor="middle" style="fill:var(--accent)">5</text>
+          <text class="lh-name" x="161" y="140" text-anchor="end">調整</text>
+          <text class="lh-sub" x="161" y="156" text-anchor="end">第 45 週策略</text>
+        </g>
+        <line x1="421" y1="263" x2="455" y2="263" style="stroke:var(--pen)" stroke-width="2"/>
+        <polygon points="0,-4.5 8,0 0,4.5" transform="translate(458,263)" style="fill:var(--pen)"/>
+        <g transform="rotate(-1.2 546 263)">
+          <rect x="460" y="235" width="172" height="56" rx="4" style="fill:var(--surface);stroke:var(--pen)" stroke-width="2"/>
+          <text x="546" y="258" text-anchor="middle" style="fill:var(--pen);font-family:var(--serif);font-style:italic;font-weight:700" font-size="15">時數 +3h · 題量 −34</text>
+          <text x="546" y="278" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans)" font-size="11.5">長時低效訊號 · 系統標記</text>
+        </g>
+      </svg>
+    </figure>
+
+    <nav class="loop-nav" aria-label="週循環節點">
+      <a href="#stage-plan"><span class="dot"></span>計畫</a>
+      <a href="#stage-monitor"><span class="dot"></span>監控</a>
+      <a href="#stage-gap"><span class="dot"></span>落差</a>
+      <a href="#stage-reflect"><span class="dot"></span>反思</a>
+      <a href="#stage-adjust"><span class="dot"></span>調整</a>
+    </nav>
+
+    <div class="stages">
+      <article class="stage rise" id="stage-plan" style="--d:60ms">
+        <h2>計畫 <span class="en">PLAN</span></h2>
+        <p class="tagline">週一開始前的設定</p>
+        <div class="body">
+          <div class="stats">
+            <div class="stat"><div class="k">計畫時數</div><div class="v">5<small>h</small></div></div>
+            <div class="stat"><div class="k">計畫題量</div><div class="v">80<small>題</small></div></div>
+            <div class="stat"><div class="k">目標正確率</div><div class="v">75<small>%</small></div></div>
+          </div>
+          <p class="note">本週重點：<b>分部積分</b>（首次出新主題，難度比上週高）</p>
+        </div>
+      </article>
+
+      <article class="stage rise" id="stage-monitor" style="--d:120ms">
+        <h2>監控 <span class="en">MONITOR</span></h2>
+        <p class="tagline">這週實際發生的事</p>
+        <div class="body">
+          <div class="stats">
+            <div class="stat"><div class="k">實際時數</div><div class="v">8<small>h</small></div></div>
+            <div class="stat"><div class="k">完成題量</div><div class="v">46<small>題</small></div></div>
+            <div class="stat"><div class="k">週正確率</div><div class="v">55<small>%</small></div></div>
+          </div>
+          <div class="days" aria-label="每日學習記錄">
+            <div class="day"><span class="d">一</span><span class="dbar" style="height:21px"></span><span class="h">1.5h</span><span class="p">8 題</span></div>
+            <div class="day"><span class="d">二</span><span class="dbar" style="height:7px"></span><span class="h">0.5h</span><span class="p">4 題</span></div>
+            <div class="day"><span class="d">三</span><span class="dbar" style="height:14px"></span><span class="h">1h</span><span class="p">6 題</span></div>
+            <div class="day"><span class="d">四</span><span class="dbar" style="height:7px"></span><span class="h">0.5h</span><span class="p">3 題</span></div>
+            <div class="day"><span class="d">五</span><span class="dbar" style="height:21px"></span><span class="h">1.5h</span><span class="p">7 題</span></div>
+            <div class="day"><span class="d">六</span><span class="dbar" style="height:35px"></span><span class="h">2.5h</span><span class="p">12 題</span></div>
+            <div class="day"><span class="d">日</span><span class="dbar" style="height:7px"></span><span class="h">0.5h</span><span class="p">6 題</span></div>
+          </div>
+          <p class="quiz-line">測驗：10/28（三）週中測驗 <b>42%</b> · 11/01（日）週末測驗 <b>61%</b>（週正確率為加權混合）</p>
+        </div>
+      </article>
+
+      <article class="stage rise" id="stage-gap" style="--d:180ms">
+        <h2>落差 <span class="en">GAP</span></h2>
+        <p class="tagline">計畫 vs 實際的偏差（系統標出）</p>
+        <div class="body">
+          <div class="gaps">
+            <div class="gap">
+              <div class="g-top"><span class="g-name">時數</span><span class="g-val">+3 h（+60%）</span></div>
+              <p class="g-sub">計畫 5h，實際 8h（<b>超標</b>）</p>
+            </div>
+            <div class="gap">
+              <div class="g-top"><span class="g-name">題量</span><span class="g-val">−34 題（−43%）</span></div>
+              <p class="g-sub">計畫 80 題，實際 46 題，完成率 <b>58%</b>（未達）</p>
+            </div>
+            <div class="gap">
+              <div class="g-top"><span class="g-name">正確率</span><span class="g-val">−20 pp</span></div>
+              <p class="g-sub">目標 75%，實際 55%（<b>未達</b>）</p>
+            </div>
+          </div>
+          <p class="conclusion">時間變多、產出變少：系統標記<b class="pen-u">長時低效</b>訊號，原因待反思階段由學生確認。</p>
+        </div>
+      </article>
+
+      <article class="stage rise" id="stage-reflect" style="--d:240ms">
+        <h2>反思 <span class="en">REFLECT</span></h2>
+        <p class="tagline">系統提問，學生確認原因（系統不自動歸因）</p>
+        <div class="body">
+          <div class="ask">
+            <p class="q"><span class="who">系統提問</span>「正確率比目標低 20 個百分點。你認為<b>最主要的原因</b>是什麼？」</p>
+            <div class="options">
+              <div class="opt selected">
+                <span class="radio"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 4l2 2 4-4" fill="none" stroke="#1E6E50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                題目比預期困難
+                <span class="pick">學生已選</span>
+              </div>
+              <div class="opt"><span class="radio"></span>基礎觀念不熟</div>
+              <div class="opt"><span class="radio"></span>計畫量過多</div>
+            </div>
+          </div>
+          <p class="student-note"><span class="who">學生備註</span>「本週分部積分比較難，同一類題卡住重做了很多次。」</p>
+        </div>
+      </article>
+
+      <article class="stage rise" id="stage-adjust" style="--d:300ms">
+        <h2>調整 <span class="en">ADJUST</span></h2>
+        <p class="tagline">下週（第 45 週）策略，結算時追蹤成效</p>
+        <div class="body">
+          <ul class="adjust-list">
+            <li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h7M7 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>新題量：<b>80 → 50 題</b></li>
+            <li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h7M7 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>每日錯題回顧：<b>15 題</b></li>
+            <li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h7M7 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>目標正確率：<b>75% → 65%</b>（先回到可達成區間）</li>
+            <li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h7M7 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>時數預算：<b>5.5 h</b></li>
+          </ul>
+          <span class="stamp">待第 45 週驗證</span>
+        </div>
+      </article>
+    </div>
+
+    <p class="loop-back rise" style="--d:340ms">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-2.5-4.9M16 2.5V6h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      下週一重設計畫時，以本週調整為起點，循環回到「計畫」
+    </p>
+    <p class="foot-note">所有數字為合成示意資料（mock），僅供介面評審，非真實學習紀錄。</p>
+  </div>
+</section>
+
+<section class="variant v2" id="variant-2" hidden>
+  <div class="wrap">
+    <header class="masthead rise" style="--d:0ms">
+      <div class="row">
+        <h1>LearnLoop 週報</h1>
+        <span class="wk">WEEK 44 · 2026-10-26 → 11-01</span>
+      </div>
+      <div class="meta-grid">
+        <div><span class="k">科目</span><span class="v">微積分（二）</span></div>
+        <div><span class="k">本週主題</span><span class="v">分部積分（新主題）</span></div>
+        <div><span class="k">資料狀態</span><span class="v">合成示意（mock）</span></div>
+        <div><span class="k">比較基準</span><span class="v">本週計畫 vs 本週實際</span></div>
+      </div>
+    </header>
+
+    <h2 class="rise" style="--d:60ms">計畫 vs 實際 <span class="en">PLAN / ACTUAL</span></h2>
+    <div class="metrics">
+      <div class="metric rise" style="--d:90ms">
+        <div class="m-head"><span class="m-name">學習時數</span><span class="chip warn">超標 +60%</span></div>
+        <div class="bars">
+          <div class="brow"><span class="bl">計畫</span><span class="bar"><i class="bar-fill plan" style="width:62.5%"></i></span><span class="bv">5 h</span></div>
+          <div class="brow"><span class="bl">實際</span><span class="bar"><i class="bar-fill actual" style="width:100%"></i></span><span class="bv">8 h</span></div>
+        </div>
+      </div>
+      <div class="metric rise" style="--d:140ms">
+        <div class="m-head"><span class="m-name">解題題量</span><span class="chip bad">未達 −43%</span></div>
+        <div class="bars">
+          <div class="brow"><span class="bl">計畫</span><span class="bar"><i class="bar-fill plan" style="width:100%"></i></span><span class="bv">80 題</span></div>
+          <div class="brow"><span class="bl">實際</span><span class="bar"><i class="bar-fill actual" style="width:57.5%"></i></span><span class="bv">46 題</span></div>
+        </div>
+      </div>
+      <div class="metric rise" style="--d:190ms">
+        <div class="m-head"><span class="m-name">週正確率</span><span class="chip bad">未達 −20 pp</span></div>
+        <div class="bars">
+          <div class="brow"><span class="bl">計畫</span><span class="bar"><i class="bar-fill plan" style="width:75%"></i></span><span class="bv">75%</span></div>
+          <div class="brow"><span class="bl">實際</span><span class="bar"><i class="bar-fill actual" style="width:55%"></i></span><span class="bv">55%</span></div>
+        </div>
+      </div>
+      <p class="legend rise" style="--d:220ms">
+        <span><i class="sw plan"></i>計畫</span>
+        <span><i class="sw actual"></i>實際</span>
+      </p>
+    </div>
+
+    <h2 class="rise" style="--d:260ms">落差發現 <span class="en">FINDINGS</span></h2>
+    <ul class="findings">
+      <li class="rise" style="--d:290ms">時數超標 <b>+60%</b>，題量完成率卻只有 <b class="big">58%</b>：多出來的時間沒有轉成產出。</li>
+      <li class="rise" style="--d:320ms">正確率 <b>55%</b> 低於目標 20 個百分點；但週末測驗 <b>61%</b> 已優於週中 <b>42%</b>，方向在改善。</li>
+      <li class="rise" style="--d:350ms">第 43 週調整（課前概念預習）使正確率 <b>+10 pp</b>，判定<b>部分有效</b>：保留，並疊加本週新調整。</li>
+    </ul>
+
+    <h2 class="rise" style="--d:380ms">每日監控 <span class="en">DAILY</span></h2>
+    <table class="dtable rise" style="--d:410ms">
+      <thead><tr><th>日期</th><th>時數</th><th>題數</th><th>測驗</th></tr></thead>
+      <tbody>
+        <tr><td>10/26（一）</td><td class="num">1.5 h</td><td class="num">8</td><td>·</td></tr>
+        <tr><td>10/27（二）</td><td class="num">0.5 h</td><td class="num">4</td><td>·</td></tr>
+        <tr><td>10/28（三）</td><td class="num">1.0 h</td><td class="num">6</td><td class="quiz">42%</td></tr>
+        <tr><td>10/29（四）</td><td class="num">0.5 h</td><td class="num">3</td><td>·</td></tr>
+        <tr><td>10/30（五）</td><td class="num">1.5 h</td><td class="num">7</td><td>·</td></tr>
+        <tr><td>10/31（六）</td><td class="num">2.5 h</td><td class="num">12</td><td>·</td></tr>
+        <tr><td>11/01（日）</td><td class="num">0.5 h</td><td class="num">6</td><td class="quiz">61%</td></tr>
+        <tr class="tot"><td>合計</td><td class="num">8.0 h</td><td class="num">46</td><td>55%*</td></tr>
+      </tbody>
+    </table>
+    <p class="foot-note" style="margin-top:var(--sp-2)">* 週正確率為兩次測驗與每日練習題的加權混合值（mock 口徑）。</p>
+
+    <h2 class="rise" style="--d:440ms">調整追蹤 <span class="en">ADJUSTMENT TRACKER</span></h2>
+    <div class="tracker">
+      <div class="trk rise" style="--d:470ms">
+        <div class="t-head"><span class="t-name">每日課前 15 分鐘概念預習</span><span class="chip good">部分有效</span></div>
+        <p class="t-src">來源：第 43 週反思（學生確認原因：基礎觀念不熟）</p>
+        <div class="t-eff">
+          <span>第 44 週成效：正確率 <b>45% → 55%（+10 pp）</b>，仍低於 75% 目標</span>
+        </div>
+        <p class="t-verdict">判定：保留此調整，並與第 44 週新調整疊加執行。</p>
+      </div>
+      <div class="trk rise" style="--d:500ms">
+        <div class="t-head"><span class="t-name">新題量降至 50 題 · 每日錯題回顧 15 題 · 目標 65%</span><span class="chip neutral">待驗證</span></div>
+        <p class="t-src">來源：第 44 週反思（學生確認原因：題目比預期困難）</p>
+        <div class="t-eff">
+          <span>第 45 週（11/02–11/08）結算時，對照本行指標判定成效。</span>
+        </div>
+      </div>
+    </div>
+    <p class="foot-note">判定方式（mock）：成效 = 與上一週同指標比較；連續兩週未達目標即重設調整。所有數字為合成示意資料。</p>
+  </div>
+</section>
+
+<section class="variant v3" id="variant-3" hidden>
+  <div class="wrap">
+    <header class="head rise" style="--d:0ms">
+      <h1>反思時間 · <span class="chalkmark">第 44 週</span></h1>
+      <p class="meta">2026/10/26–11/01 · 微積分（二）· 分部積分</p>
+    </header>
+
+    <div class="steps rise" style="--d:60ms" aria-label="反思步驟">
+      <span class="step done" id="step-1"><span class="n">1</span>落差確認</span>
+      <span class="step done" id="step-2"><span class="n">2</span>原因確認</span>
+      <span class="step pending" id="step-3"><span class="n">3</span>下週計畫</span>
+    </div>
+
+    <div class="thread">
+      <div class="entry e-sys rise" style="--d:120ms">
+        <span class="who">系統 · 本週結算</span>
+        <div class="datacard">
+          <div class="drow"><span>學習時數</span><span class="dp">計畫 5 h（+60%）</span><span class="dv neg">8 h</span></div>          <div class="drow"><span>解題題量</span><span class="dp">計畫 80 題（−43%）</span><span class="dv neg">46 題</span></div>
+          <div class="drow"><span>週正確率</span><span class="dp">目標 75%（−20 pp）</span><span class="dv neg">55%</span></div>
+        </div>
+      </div>
+
+      <div class="entry e-sys rise" style="--d:180ms">
+        <span class="who">系統提問</span>
+        <p class="q-big">正確率比目標低 <span class="chalkmark">20 個百分點</span>。你認為最主要的原因是什麼？</p>
+        <div class="causes" role="group" aria-label="原因選項">
+          <button class="cause selected" aria-pressed="true">
+            <span class="radio"></span>
+            題目比預期困難
+            <span class="mark"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+          <button class="cause" aria-pressed="false">
+            <span class="radio"></span>
+            基礎觀念不熟
+            <span class="mark"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+          <button class="cause" aria-pressed="false">
+            <span class="radio"></span>
+            計畫量過多
+            <span class="mark"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3.2L12 3.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+        </div>
+        <p class="stu-note"><span class="who">學生補充</span>「本週分部積分比較難，同一類題卡住重做了很多次。」</p>
+      </div>
+
+      <div class="entry e-sys rise" style="--d:240ms">
+        <span class="who">系統追問</span>
+        <p>時數比計畫多 3 小時，題量卻少了 34 題——<span class="chalkmark">有卡在特定題型上嗎？</span></p>
+      </div>
+      <div class="entry e-stu rise" style="--d:300ms">
+        <span class="who">學生回答</span>
+        <p>有。分部積分的同類題重做了三遍，卡了很久。</p>
+      </div>
+
+      <div class="entry e-sys rise" style="--d:360ms">
+        <span class="who">系統建議 · 第 45 週計畫</span>
+        <div class="plan-card">
+          <div class="plan-row"><span>新題量</span><b>80 → 50 題</b></div>
+          <div class="plan-row"><span>每日錯題回顧</span><b>15 題</b></div>
+          <div class="plan-row"><span>目標正確率</span><b>75% → 65%</b></div>
+          <div class="plan-row"><span>時數預算</span><b>5.5 h</b></div>
+        </div>
+        <p class="track-line">追蹤方式：第 45 週結算時，系統會對照本計畫判定成效（先回到可達成區間，再逐步升回 75%）。</p>
+        <div class="confirm-zone" id="confirm-zone">
+          <button class="confirm-btn" id="confirm-btn">確認下週計畫</button>
+          <span class="confirm-note">已記錄下週計畫（mock）· 第 45 週結算時自動對照驗證</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="foot-note">系統只提問、不自動歸因：原因一律由學生確認後才進入調整。對話與數字皆為合成示意資料（mock）。</p>
+  </div>
+</section>
+
+<div class="switcher" role="group" aria-label="切換原型變體">
+  <button type="button" data-variant-prev aria-label="上一個變體">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span data-variant-label>1 (週循環時間軸)</span>
+  <button type="button" data-variant-next aria-label="下一個變體">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 2l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEYS = ["1","2","3"];
+  var NAMES = { "1":"週循環時間軸", "2":"計畫對實際報告", "3":"引導反思對話" };
+  var sections = {};
+  KEYS.forEach(function(k){ sections[k] = document.getElementById("variant-" + k); });
+  var label = document.querySelector("[data-variant-label]");
+  var params = new URLSearchParams(location.search);
+  var current = params.get("variant");
+  if (KEYS.indexOf(current) === -1) current = "1";
+
+  function apply(){
+    KEYS.forEach(function(k){ sections[k].hidden = (k !== current); });
+    label.textContent = current + " (" + NAMES[current] + ")";
+    var el = sections[current];
+    el.classList.remove("anim");
+    void el.offsetWidth; // reflow 以重播進場動效
+    el.classList.add("anim");
+    if (current === "1") window.scrollTo(0, 0);
+  }
+  function go(k){
+    current = k;
+    var url = new URL(location.href);
+    url.searchParams.set("variant", k);
+    history.replaceState(null, "", url);
+    apply();
+  }
+  function cycle(d){
+    var i = KEYS.indexOf(current);
+    go(KEYS[(i + d + KEYS.length) % KEYS.length]);
+  }
+  document.querySelector("[data-variant-prev]").addEventListener("click", function(){ cycle(-1); });
+  document.querySelector("[data-variant-next]").addEventListener("click", function(){ cycle(1); });
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    var t = document.activeElement;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    cycle(e.key === "ArrowLeft" ? -1 : 1);
+  });
+
+  /* ---- 變體 1：循環索引 scroll-spy ---- */
+  (function(){
+    var navLinks = document.querySelectorAll(".v1 .loop-nav a");
+    var stages = document.querySelectorAll(".v1 .stage");
+    if (!("IntersectionObserver" in window) || !navLinks.length) return;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (!en.isIntersecting) return;
+        navLinks.forEach(function(a){
+          a.classList.toggle("active", a.getAttribute("href") === "#" + en.target.id);
+        });
+      });
+    }, { rootMargin: "-20% 0px -60% 0px", threshold: 0 });
+    stages.forEach(function(s){ io.observe(s); });
+    if (navLinks[0]) navLinks[0].classList.add("active");
+  })();
+
+  /* ---- 變體 3：原因選擇 + 確認（in-memory only） ---- */
+  (function(){
+    var causes = document.querySelectorAll(".v3 .cause");
+    var zone = document.getElementById("confirm-zone");
+    var btn = document.getElementById("confirm-btn");
+    var step3 = document.getElementById("step-3");
+    causes.forEach(function(btnEl){
+      btnEl.addEventListener("click", function(){
+        causes.forEach(function(b){ b.classList.remove("selected"); b.setAttribute("aria-pressed","false"); });
+        btnEl.classList.add("selected");
+        btnEl.setAttribute("aria-pressed","true");
+        // 改選原因 → 需重新確認
+        zone.classList.remove("confirmed");
+        btn.disabled = false;
+        btn.textContent = "確認下週計畫";
+        step3.classList.remove("done");
+        step3.classList.add("pending");
+      });
+    });
+    btn.addEventListener("click", function(){
+      zone.classList.add("confirmed");
+      btn.disabled = true;
+      btn.textContent = "已確認";
+      step3.classList.remove("pending");
+      step3.classList.add("done");
+    });
+  })();
+
+  apply();
+})();
+</script>
+</body>
+</html>

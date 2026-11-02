@@ -1,0 +1,626 @@
+<!doctype html>
+<!-- ExamForge 設計問題：「可驗證 AI 出題＋自適應練習」的核心介面應該長什麼樣子？三個結構迥異的變體以 ?variant=1..3 切換：1 學生 IDE 判題工作區、2 學生難度階梯練習流、3 教師候選題審核工作台。 -->
+<!--
+  設計系統（一次性原型）
+  共用 token：4px 間距階層 --s1..--s7；字級 --t-cap/sm/md/lg/xl/code；圓角 --r-s/m/l；陰影 --sh-1。
+  三個變體各是一個獨立「視覺世界」，世界色票以 .v1/.v2/.v3 範圍內的 CSS 變數宣告：
+  v1 判題工作區＝深夜 IDE（墨藍底、磷光綠/琥珀/紅語義色、monospace 只用於代碼與量測）
+  v2 難度階梯＝考卷（暖紙底、墨色文字、紅筆批改標記）
+  v3 審核工作台＝冷色專業辦公（霧藍灰底、白面板、深藍主色）
+  每個世界只宣告一層高程（v1/v2 用 1px 框線、v3 用陰影），不混用。
+-->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExamForge 一次性原型（第一版）</title>
+<style>
+/* ============ 0. 重置與共用 token ============ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+:root{
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --r-s:8px;--r-m:12px;--r-l:16px;
+  --t-cap:11px;--t-sm:12px;--t-md:14px;--t-lg:16px;--t-xl:22px;--t-code:13px;
+  --sh-1:0 1px 2px rgba(15,23,42,.06),0 2px 8px rgba(15,23,42,.09);
+  --dur:160ms;
+}
+body{font-family:var(--sans);font-size:var(--t-md);background:#0e141c}
+h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
+button{font:inherit;cursor:pointer}
+img,svg{vertical-align:middle}
+
+/* ============ 1. 共用元件：按鈕 / 卡片 / 標籤 ============ */
+.btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:9px 16px;font-size:var(--t-sm);font-weight:700;line-height:1.2;transition:background var(--dur),transform var(--dur),box-shadow var(--dur)}
+.btn:active{transform:translateY(1px)}
+.card-title{font-size:var(--t-lg);font-weight:800;letter-spacing:-0.01em}
+.syn-tag{font-size:var(--t-cap);border-radius:999px;padding:2px 8px;white-space:nowrap}
+
+/* ============ 2. 原型共用外框（非頁面設計的一部分） ============ */
+.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#15181d;color:#f4f6f8;font-size:var(--t-sm);font-weight:600;padding:10px var(--s4)}
+.proto-banner::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;background:#ffd21f}
+.variant{min-height:100svh;padding-bottom:88px}
+.variant[hidden]{display:none}
+.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:var(--s2);background:#0c0e12;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background var(--dur)}
+.vs-btn:hover{background:rgba(255,255,255,.26)}
+.vs-label{font-size:var(--t-sm);font-weight:700;min-width:132px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ============ 3. 變體 1：判題工作區（深夜 IDE） ============ */
+.v1{
+  --v-bg:#0e141c;--v-panel:#151d28;--v-panel2:#101823;--v-code:#0a1016;
+  --v-line:#263345;--v-text:#e2e9f3;--v-dim:#8b9cb2;
+  --v-pass:#3fd07f;--v-fail:#ff5f56;--v-warn:#ffb454;--v-accent:#58a6ff;
+  background:var(--v-bg);color:var(--v-text);color-scheme:dark;
+}
+.v1 :focus-visible{outline:2px solid var(--v-accent);outline-offset:2px}
+.v1 ::selection{background:rgba(88,166,255,.35)}
+.v1-shell{max-width:1200px;margin:0 auto;padding:0 var(--s5)}
+.v1-topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s4) 0;border-bottom:1px solid var(--v-line);margin-bottom:var(--s5)}
+.v1-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
+.v1-crumb{color:var(--v-dim);font-size:var(--t-sm)}
+.v1-crumb b{color:var(--v-text);font-weight:700}
+.v1-lv{font-family:var(--mono);font-size:var(--t-sm);font-weight:700;color:var(--v-accent);background:rgba(88,166,255,.12);padding:2px 8px;border-radius:6px}
+.v1-actions{margin-left:auto;display:flex;align-items:center;gap:var(--s2)}
+.v1 .syn-tag{color:var(--v-dim);border:1px solid var(--v-line)}
+.v1-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:var(--s5);align-items:start}
+.v1-col{display:grid;gap:var(--s4)}
+.v1 .card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4)}
+.v1-meta{color:var(--v-dim);font-size:var(--t-sm);margin:2px 0 var(--s3)}
+.v1-desc{line-height:1.7;margin-bottom:var(--s3);max-width:62em}
+.v1 p code,.v1-meta code{font-family:var(--mono);font-size:.95em;background:var(--v-code);border:1px solid var(--v-line);padding:1px 5px;border-radius:5px}
+.v1-io{background:var(--v-code);border:1px solid var(--v-line);border-radius:var(--r-m);padding:10px var(--s3);font-family:var(--mono);font-size:var(--t-code);line-height:1.7;color:#c9d6e6;overflow-x:auto;margin-bottom:var(--s3)}
+.v1-io:last-child{margin-bottom:0}
+.v1 .card-title{margin-bottom:var(--s2)}
+.v1-editor{padding:0;overflow:hidden}
+.v1-editor__bar{display:flex;align-items:center;gap:8px;padding:10px var(--s4);background:var(--v-panel2);border-bottom:1px solid var(--v-line);font-size:var(--t-sm);color:var(--v-dim);font-family:var(--mono)}
+.v1-dot{width:8px;height:8px;border-radius:50%;background:var(--v-pass)}
+.v1-editor__hint{margin-left:auto;font-family:var(--sans)}
+.v1-code{background:var(--v-code);padding:var(--s3) 0;overflow-x:auto;font-family:var(--mono);font-size:var(--t-code);line-height:1.8}
+.v1-code::-webkit-scrollbar{height:8px}
+.v1-code::-webkit-scrollbar-thumb{background:#2b3a4e;border-radius:4px}
+.cl{display:flex;padding:1px var(--s4);white-space:pre}
+.cl i{flex:none;width:2em;margin-right:1.4em;text-align:right;font-style:normal;color:#46586f;user-select:none}
+.cl span{color:#c9d6e6}
+.tn{color:var(--v-warn)}
+.tk{color:#79b8ff}
+.cm{color:#5d6f85}
+.cl--bad{background:rgba(255,95,86,.1)}
+.cm--bad{color:var(--v-fail);font-weight:700}
+.v1-judge__head{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:var(--s1)}
+.v1-badge{font-weight:800;font-size:var(--t-sm);padding:4px 10px;border-radius:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.v1-badge--wa{background:rgba(255,180,84,.16);color:var(--v-warn)}
+.v1-judge__engine{color:var(--v-dim);font-size:var(--t-sm);margin-bottom:var(--s2);line-height:1.6}
+.v1-tcs{list-style:none;padding:0}
+.v1-tcs li{display:grid;grid-template-columns:44px minmax(0,1fr) auto 52px;gap:var(--s2);align-items:center;padding:9px var(--s2);border-top:1px solid var(--v-line);font-size:var(--t-sm)}
+.v1-tcs li:first-child{border-top:0}
+.tc-id{font-family:var(--mono);color:var(--v-dim)}
+.tc-res{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc-res svg{flex:none}
+.ok{color:var(--v-pass)}
+.bad{color:var(--v-fail)}
+.tc-ms{color:var(--v-dim);text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.tc--fail{background:rgba(255,95,86,.08)}
+.v1-judge__note{color:var(--v-dim);font-size:var(--t-sm);margin-top:var(--s3);line-height:1.7}
+.v1-judge__note code,.v1-error dd code,.v1-hint code{font-family:var(--mono);font-size:.95em;background:var(--v-code);border:1px solid var(--v-line);padding:1px 5px;border-radius:5px}
+.v1-error dl{display:grid;gap:var(--s3);margin-top:var(--s1)}
+.v1-error dt{font-size:var(--t-sm);color:var(--v-dim)}
+.v1-error dd{margin-top:2px;line-height:1.7}
+.v1-error dd b{color:var(--v-fail)}
+.v1-hint{margin-top:var(--s3);padding:var(--s3);background:var(--v-panel2);border:1px solid var(--v-line);border-radius:var(--r-m);font-size:var(--t-sm);line-height:1.7}
+.v1-next{border-color:rgba(88,166,255,.45)}
+.v1-plus{display:inline-block;font-size:var(--t-sm);font-weight:800;color:var(--v-accent);background:rgba(88,166,255,.12);padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:2px}
+.v1-next h3{margin:var(--s3) 0 var(--s2);font-size:var(--t-lg)}
+.v1-next p{line-height:1.7}
+.v1-why{color:var(--v-dim);font-size:var(--t-sm)}
+.v1-next .btn{margin-top:var(--s3)}
+.v1 .btn-primary{background:var(--v-pass);color:#06230f}
+.v1 .btn-primary:hover{background:#54d88f}
+.v1 .btn-ghost{background:transparent;color:var(--v-dim);box-shadow:inset 0 0 0 1px var(--v-line)}
+.v1 .btn-ghost:hover{color:var(--v-text)}
+.v1-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5)}
+
+/* ============ 4. 變體 2：難度階梯（考卷） ============ */
+.v2{
+  --v-bg:#f5efe3;--v-panel:#fffdf7;--v-ink:#28211a;--v-dim:#776852;
+  --v-line:#e5dac4;--v-red:#c53a1f;--v-ok:#2c7a4b;--v-next:#a06a08;
+  background:var(--v-bg);color:var(--v-ink);
+}
+.v2 :focus-visible{outline:2px solid var(--v-red);outline-offset:2px}
+.v2 ::selection{background:rgba(197,58,31,.22)}
+.v2-shell{max-width:600px;margin:0 auto;padding:var(--s4) var(--s4) 0}
+.v2-top{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) 0}
+.v2-brand{display:flex;align-items:center;gap:8px;font-weight:800}
+.v2 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
+.v2-h1{margin:var(--s5) 0 var(--s2);font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em}
+.v2-sub{color:var(--v-dim);line-height:1.7;margin-bottom:var(--s5)}
+.v2-ladder{list-style:none;padding:0;margin:0 0 var(--s5);display:grid;gap:10px}
+.step{display:flex;align-items:center;gap:10px;background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-m);padding:10px 12px}
+.step__lv{flex:none;font-family:var(--mono);font-weight:700;font-size:var(--t-sm);background:var(--v-ink);color:var(--v-bg);border-radius:var(--r-s);display:grid;place-items:center;width:44px;text-align:center}
+.step--1 .step__lv{height:24px}
+.step--2 .step__lv{height:30px}
+.step--3 .step__lv{height:36px}
+.step--4 .step__lv{height:42px}
+.step--5 .step__lv{height:48px}
+.step--2{margin-left:12px}
+.step--3{margin-left:24px}
+.step--4{margin-left:36px}
+.step--5{margin-left:48px}
+.step__name{font-weight:600;position:relative;min-width:0}
+.v2-underline{position:absolute;left:0;bottom:-7px;width:100%;height:8px;color:var(--v-red);pointer-events:none}
+.step__st{margin-left:auto;font-size:var(--t-sm);font-weight:700;white-space:nowrap}
+.st--ok{color:var(--v-ok);font-variant-numeric:tabular-nums}
+.st--now{color:var(--v-red);border:1.5px solid var(--v-red);border-radius:8px;padding:1px 8px;transform:rotate(-1.5deg);font-variant-numeric:tabular-nums}
+.st--next{color:var(--v-next)}
+.st--lock{color:var(--v-dim);opacity:.75}
+.step--4,.step--5{opacity:.55}
+.v2-card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4);margin-bottom:var(--s4)}
+.v2-card__t{font-size:var(--t-lg);font-weight:800;margin-bottom:var(--s3)}
+.v2-score{display:flex;align-items:center;gap:var(--s4);margin-bottom:var(--s4)}
+.v2-circled{position:relative;display:inline-block;font-size:26px;font-weight:800;color:var(--v-red);padding:12px 20px;font-variant-numeric:tabular-nums;line-height:1}
+.v2-circled svg{position:absolute;left:-4px;top:-4px;width:calc(100% + 8px);height:calc(100% + 8px);pointer-events:none}
+.v2-score p{color:var(--v-dim);line-height:1.7}
+.v2-score b{color:var(--v-ink)}
+.v2-bug{background:#faf4e8;border:1px dashed #d9c9a8;border-radius:var(--r-m);padding:var(--s3);margin-bottom:calc(var(--s4) + var(--s5))}
+.v2-bug__t{display:block;font-size:var(--t-sm);font-weight:700;color:var(--v-red);margin-bottom:6px}
+.v2-bug pre{margin:0;overflow-x:auto;font-family:var(--mono);font-size:var(--t-code);line-height:1.7;color:var(--v-ink)}
+.v2-cta{display:flex;gap:var(--s2);flex-wrap:wrap}
+.v2-plus{display:inline-block;font-size:var(--t-sm);font-weight:800;color:var(--v-red);border:1.5px solid var(--v-red);padding:1px 8px;border-radius:6px;margin-left:8px;vertical-align:2px}
+.v2-next h3{margin:var(--s2) 0;font-size:var(--t-lg);font-weight:800}
+.v2-lv{font-family:var(--mono);font-size:var(--t-sm);color:var(--v-dim);font-weight:600}
+.v2-next p{line-height:1.7;color:var(--v-dim)}
+.v2-next .btn{margin-top:var(--s3)}
+.v2 .btn-primary{background:var(--v-ink);color:#fffdf8}
+.v2 .btn-primary:hover{background:#3d332a}
+.v2 .btn-ghost{background:transparent;color:var(--v-ink);box-shadow:inset 0 0 0 1px var(--v-line)}
+.v2 .btn-outline{background:transparent;color:var(--v-red);box-shadow:inset 0 0 0 1.5px var(--v-red)}
+.v2 .btn-outline:hover{background:rgba(197,58,31,.07)}
+.v2-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.7}
+
+/* ============ 5. 變體 3：審核工作台（冷色辦公） ============ */
+.v3{
+  --v-bg:#edf0f4;--v-panel:#ffffff;--v-ink:#1e2833;--v-dim:#5d6c7e;
+  --v-line:#dbe1e9;--v-soft:#f4f6fa;--v-accent:#2b50c8;
+  --v-ok:#178a50;--v-warn:#b07507;--v-bad:#c23b3b;
+  background:var(--v-bg);color:var(--v-ink);
+}
+.v3 :focus-visible{outline:2px solid var(--v-accent);outline-offset:2px}
+.v3 ::selection{background:rgba(43,80,200,.22)}
+.v3-shell{max-width:1160px;margin:0 auto;padding:var(--s4) var(--s5) 0}
+.v3-topbar{display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)}
+.v3-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
+.v3-sub{font-size:var(--t-cap);color:var(--v-dim);border:1px solid var(--v-line);padding:2px 8px;border-radius:999px;background:var(--v-panel)}
+.v3-title{font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em}
+.v3-user{margin-left:auto;color:var(--v-dim);font-size:var(--t-sm)}
+.v3-grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:var(--s5);align-items:start}
+.v3 .card{background:var(--v-panel);border-radius:var(--r-l);box-shadow:var(--sh-1);padding:var(--s4)}
+.v3-queue__head{margin-bottom:var(--s3)}
+.v3-queue__head h2{font-size:var(--t-lg);font-weight:800}
+.v3-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--s4)}
+.chip{font-size:var(--t-sm);color:var(--v-dim);background:var(--v-soft);border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums}
+.chip--on{background:var(--v-ink);color:#fff;font-weight:700}
+.v3-qlist{list-style:none;padding:0;display:grid;gap:8px}
+.v3-qitem{border-radius:var(--r-m);padding:10px 12px;border:1px solid transparent}
+.v3-qitem--sel{background:var(--v-soft);border-color:var(--v-accent)}
+.v3-qrow{display:flex;align-items:center;gap:8px;font-size:var(--t-md)}
+.v3-qrow b{font-weight:700}
+.v3-st{margin-left:auto;font-size:var(--t-sm);font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.st--wait{background:rgba(43,80,200,.1);color:var(--v-accent)}
+.st--run{background:rgba(176,117,7,.12);color:var(--v-warn)}
+.st--ok{background:rgba(23,138,80,.12);color:var(--v-ok)}
+.st--bad{background:rgba(194,59,59,.1);color:var(--v-bad)}
+.st--gen{background:rgba(93,108,126,.12);color:var(--v-dim)}
+.v3-qmeta{color:var(--v-dim);font-size:var(--t-sm);margin-top:4px;font-variant-numeric:tabular-nums}
+.v3-main{display:grid;gap:var(--s4)}
+.v3-detail__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--s4)}
+.v3-detail__head h2{font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em}
+.v3-lv{font-family:var(--mono);font-size:var(--t-sm);font-weight:700;background:var(--v-soft);padding:2px 8px;border-radius:6px}
+.v3-tag{font-size:var(--t-sm);color:var(--v-dim);background:var(--v-soft);padding:2px 10px;border-radius:999px}
+.v3-pipe{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:var(--s4);padding:var(--s3);background:var(--v-soft);border-radius:var(--r-m)}
+.v3-step{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-sm);font-weight:600;color:var(--v-dim)}
+.v3-step--done{color:var(--v-ok)}
+.v3-step--now{color:var(--v-accent);background:var(--v-panel);border-radius:999px;padding:2px 10px;box-shadow:var(--sh-1);font-weight:700}
+.v3-step__line{width:16px;height:1px;background:var(--v-line)}
+.v3-desc{line-height:1.75;margin-bottom:var(--s4);max-width:62em}
+.v3-sub-h{margin:var(--s4) 0 var(--s2);font-size:var(--t-md);font-weight:800}
+.v3-tbl-wrap{overflow-x:auto}
+.v3-tbl{width:100%;border-collapse:collapse;font-size:var(--t-sm);min-width:420px}
+.v3-tbl th{text-align:left;color:var(--v-dim);font-weight:600;font-size:var(--t-cap);padding:6px 10px;border-bottom:1px solid var(--v-line)}
+.v3-tbl td{padding:8px 10px;border-bottom:1px solid var(--v-line)}
+.v3-tbl tr:last-child td{border-bottom:0}
+.num{font-variant-numeric:tabular-nums;color:var(--v-dim);font-family:var(--mono)}
+.v3-ok{color:var(--v-ok);font-weight:700}
+.v3-note{color:var(--v-dim);font-size:var(--t-sm);margin-top:var(--s3);line-height:1.7}
+.v3-actions{display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+.v3-label{display:block;font-size:var(--t-sm);font-weight:600;margin-bottom:6px}
+.v3-textarea{width:100%;resize:vertical;border:1px solid var(--v-line);border-radius:var(--r-m);padding:10px 12px;font:inherit;font-size:var(--t-sm);background:var(--v-soft);color:var(--v-ink);line-height:1.6}
+.v3-textarea::placeholder{color:var(--v-dim)}
+.v3-note2{color:var(--v-dim);font-size:var(--t-sm);margin-top:var(--s3);line-height:1.7}
+.v3 .btn-primary{background:var(--v-accent);color:#fff}
+.v3 .btn-primary:hover{background:#3a5fd6}
+.v3 .btn-danger{background:transparent;color:var(--v-bad);box-shadow:inset 0 0 0 1px var(--v-bad)}
+.v3 .btn-danger:hover{background:rgba(194,59,59,.06)}
+
+/* ============ 6. 響應式 ============ */
+@media (max-width:960px){
+  .v3-grid{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  .v1-grid{grid-template-columns:1fr}
+  .v1-shell,.v3-shell{padding-left:var(--s4);padding-right:var(--s4)}
+  .v1-actions{width:100%;margin-left:0}
+}
+@media (max-width:390px){
+  .v2-shell{padding-left:var(--s3);padding-right:var(--s3)}
+  .step--5{margin-left:36px}
+  .step--4{margin-left:28px}
+  .step--3{margin-left:16px}
+  .step--2{margin-left:8px}
+}
+</style>
+</head>
+<body>
+
+<div class="proto-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
+
+<main>
+<!-- ================= 變體 1：判題工作區（學生 · IDE 風格） ================= -->
+<section class="variant v1" data-variant="1">
+  <div class="v1-shell">
+    <header class="v1-topbar">
+      <div class="v1-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" opacity=".14"/><path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ExamForge
+      </div>
+      <span class="v1-crumb">演練題 <b>實作二分搜尋</b> <span class="v1-lv">Lv.2</span></span>
+      <div class="v1-actions">
+        <span class="syn-tag">合成資料</span>
+        <button class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+          提交程式碼
+        </button>
+      </div>
+    </header>
+
+    <div class="v1-grid">
+      <div class="v1-col">
+        <article class="card">
+          <h2 class="card-title">實作二分搜尋</h2>
+          <p class="v1-meta">Lv.2 · 時間限制 1.0 秒 · 記憶體 64 MB</p>
+          <p class="v1-desc">給定一個遞增的整數陣列 <code>arr</code> 與目標值 <code>target</code>，實作 <code>binarySearch(arr, target)</code>：若找到目標，回傳該元素的下標；找不到則回傳 <code>-1</code>。要求時間複雜度 O(log n)。</p>
+          <pre class="v1-io">輸入：arr = [3, 5, 7]，target = 5
+輸出：1（arr[1] === 5）</pre>
+        </article>
+
+        <article class="card v1-editor">
+          <div class="v1-editor__bar">
+            <span class="v1-dot" aria-hidden="true"></span>
+            main.js
+            <span class="v1-editor__hint">第 4、7 行有邊界問題</span>
+          </div>
+          <div class="v1-code">
+            <div class="cl"><i>1</i><span><span class="tk">function</span> binarySearch(arr, target) {</span></div>
+            <div class="cl"><i>2</i><span>  <span class="tk">let</span> l = <span class="tn">0</span>;</span></div>
+            <div class="cl"><i>3</i><span>  <span class="tk">let</span> r = arr.length - <span class="tn">1</span>;</span></div>
+            <div class="cl cl--bad"><i>4</i><span>  <span class="tk">while</span> (l &lt; r) {            <span class="cm cm--bad">// 邊界 1：l === r 時直接跳出</span></span></div>
+            <div class="cl"><i>5</i><span>    <span class="tk">const</span> mid = (l + r) / <span class="tn">2</span> | <span class="tn">0</span>;</span></div>
+            <div class="cl"><i>6</i><span>    <span class="tk">if</span> (arr[mid] &lt; target) l = mid + <span class="tn">1</span>;</span></div>
+            <div class="cl cl--bad"><i>7</i><span>    <span class="tk">else if</span> (arr[mid] &gt; target) r = mid - <span class="tn">1</span>;  <span class="cm cm--bad">// off-by-one</span></span></div>
+            <div class="cl"><i>8</i><span>    <span class="tk">else</span> <span class="tk">return</span> mid;</span></div>
+            <div class="cl"><i>9</i><span>  }</span></div>
+            <div class="cl"><i>10</i><span>  <span class="tk">return</span> <span class="tn">-1</span>;</span></div>
+            <div class="cl"><i>11</i><span>}</span></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="v1-col">
+        <article class="card">
+          <div class="v1-judge__head">
+            <h2 class="card-title">判題結果</h2>
+            <span class="v1-badge v1-badge--wa">4 / 5 通過</span>
+          </div>
+          <p class="v1-judge__engine">判定引擎：DOMjudge（確定性判定，同一份程式碼重跑結果一致）</p>
+          <ul class="v1-tcs">
+            <li>
+              <span class="tc-id">TC1</span><span>三元素·命中中間</span>
+              <span class="tc-res ok"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>通過</span>
+              <span class="tc-ms">12 ms</span>
+            </li>
+            <li>
+              <span class="tc-id">TC2</span><span>十五元素·命中前段</span>
+              <span class="tc-res ok"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>通過</span>
+              <span class="tc-ms">10 ms</span>
+            </li>
+            <li>
+              <span class="tc-id">TC3</span><span>四元素·目標不存在</span>
+              <span class="tc-res ok"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>通過</span>
+              <span class="tc-ms">11 ms</span>
+            </li>
+            <li>
+              <span class="tc-id">TC4</span><span>五元素·命中正中</span>
+              <span class="tc-res ok"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>通過</span>
+              <span class="tc-ms">9 ms</span>
+            </li>
+            <li class="tc--fail">
+              <span class="tc-id">TC5</span><span>三元素·目標為首元素</span>
+              <span class="tc-res bad"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>WA</span>
+              <span class="tc-ms">13 ms</span>
+            </li>
+          </ul>
+          <p class="v1-judge__note">TC5：arr = [10, 20, 30]、target = 10，期望回傳 <code>0</code>，實際回傳 <code>-1</code>。</p>
+        </article>
+
+        <article class="card v1-error">
+          <h2 class="card-title">錯誤分析</h2>
+          <dl>
+            <div>
+              <dt>錯誤類型</dt>
+              <dd><b>off-by-one（邊界偏移一格）</b>，集中在邊界收縮與迴圈結束條件。</dd>
+            </div>
+            <div>
+              <dt>出錯機制</dt>
+              <dd>第 4 行 <code>while (l &lt; r)</code> 讓「只剩一個元素」時直接跳出、不再檢查；第 7 行 <code>r = mid - 1</code> 收縮右邊界時也跳過 mid 本身。</dd>
+            </div>
+          </dl>
+          <p class="v1-hint">提示（不給答案）：檢查第 4 行的迴圈結束條件，以及第 7 行——當 arr[mid] &gt; target 時，mid 本身是否仍可能是答案？</p>
+        </article>
+
+        <article class="card v1-next">
+          <h2 class="card-title">下一題建議<span class="v1-plus">難度 +1</span></h2>
+          <h3>實作 lower_bound</h3>
+          <p>回傳陣列中第一個 ≥ target 的元素下標（Lv.3）。</p>
+          <p class="v1-why">推薦原因：你這次的錯誤集中在邊界收縮，這題專門練習邊界處理，難度比現在高一階。</p>
+          <button class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8h10M9 3.5L13.5 8 9 12.5"/></svg>
+            接受建議，開始練習
+          </button>
+        </article>
+      </div>
+    </div>
+    <p class="v1-foot">所有題名、測試案例與執行時間皆為合成示範資料，僅供選題評審。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 2：難度階梯（學生 · 練習路徑） ================= -->
+<section class="variant v2" data-variant="2" hidden>
+  <div class="v2-shell">
+    <header class="v2-top">
+      <div class="v2-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" opacity=".14"/><path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ExamForge
+      </div>
+      <span class="syn-tag">合成資料</span>
+    </header>
+
+    <h1 class="v2-h1">我的練習路徑</h1>
+    <p class="v2-sub">沿著難度階梯往上爬：過一關，才解鎖下一題。</p>
+
+    <ol class="v2-ladder">
+      <li class="step step--1">
+        <span class="step__lv">Lv.1</span>
+        <span class="step__name">順序搜尋</span>
+        <span class="step__st st--ok">已通過 5/5</span>
+      </li>
+      <li class="step step--2">
+        <span class="step__lv">Lv.2</span>
+        <span class="step__name">實作二分搜尋<svg class="v2-underline" viewBox="0 0 120 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2 5 C 20 2, 40 7, 60 4 S 100 2, 118 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <span class="step__st st--now">進行中 4/5</span>
+      </li>
+      <li class="step step--3">
+        <span class="step__lv">Lv.3</span>
+        <span class="step__name">lower_bound</span>
+        <span class="step__st st--next">建議下一題</span>
+      </li>
+      <li class="step step--4">
+        <span class="step__lv">Lv.4</span>
+        <span class="step__name">前綴和（區間和）</span>
+        <span class="step__st st--lock">未解鎖</span>
+      </li>
+      <li class="step step--5">
+        <span class="step__lv">Lv.5</span>
+        <span class="step__name">二分答案</span>
+        <span class="step__st st--lock">未解鎖</span>
+      </li>
+    </ol>
+
+    <article class="v2-card">
+      <h2 class="v2-card__t">現在這題：實作二分搜尋</h2>
+      <div class="v2-score">
+        <span class="v2-circled">4/5
+          <svg viewBox="0 0 130 70" preserveAspectRatio="none" aria-hidden="true"><path d="M65 8 C 104 4, 126 18, 124 35 C 122 56, 88 66, 58 64 C 24 62, 5 48, 7 31 C 9 14, 40 6, 84 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </span>
+        <p>五個測試組通過四個，<b>TC5 失敗（WA）</b>：目標為首元素時，程式沒檢查最後剩下的那一個位置。</p>
+      </div>
+      <div class="v2-bug">
+        <span class="v2-bug__t">錯誤類型：off-by-one（邊界偏移一格）</span>
+        <pre>else if (arr[mid] &gt; target) r = mid - 1;   // 收縮右邊界時跳過了 mid</pre>
+      </div>
+      <div class="v2-cta">
+        <button class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+          重新提交程式碼
+        </button>
+        <button class="btn btn-ghost">查看完整判題結果</button>
+      </div>
+    </article>
+
+    <article class="v2-card v2-next">
+      <h2 class="v2-card__t">下一題建議<span class="v2-plus">難度 +1</span></h2>
+      <h3>實作 lower_bound <span class="v2-lv">Lv.3</span></h3>
+      <p>回傳陣列中第一個 ≥ target 的下標。這題專門練「邊界收縮」——正好補你這次的 off-by-one。</p>
+      <button class="btn btn-outline">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8h10M9 3.5L13.5 8 9 12.5"/></svg>
+        接受建議，挑戰 Lv.3
+      </button>
+    </article>
+
+    <p class="v2-foot">所有進度、題名與判題結果皆為合成示範資料，僅供選題評審。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 3：審核工作台（教師 · 候選題佇列） ================= -->
+<section class="variant v3" data-variant="3" hidden>
+  <div class="v3-shell">
+    <header class="v3-topbar">
+      <div class="v3-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" opacity=".14"/><path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ExamForge
+        <span class="v3-sub">教師端</span>
+      </div>
+      <h1 class="v3-title">候選題審核</h1>
+      <span class="v3-user">教師 demo 帳號（合成資料）</span>
+    </header>
+
+    <div class="v3-grid">
+      <aside class="card v3-queue">
+        <div class="v3-queue__head"><h2>候選題佇列</h2></div>
+        <div class="v3-chips" aria-label="佇列狀態分布">
+          <span class="chip chip--on">全部 5</span>
+          <span class="chip">待審核 1</span>
+          <span class="chip">驗證中 1</span>
+          <span class="chip">已核准 1</span>
+          <span class="chip">已退回 1</span>
+        </div>
+        <ul class="v3-qlist">
+          <li class="v3-qitem v3-qitem--sel">
+            <div class="v3-qrow"><b>實作 lower_bound</b><span class="v3-st st--wait">待審核</span></div>
+            <div class="v3-qmeta">Lv.3 · 測試 5/5 通過 · 5 分鐘前</div>
+          </li>
+          <li class="v3-qitem">
+            <div class="v3-qrow"><b>區間和（前綴和）</b><span class="v3-st st--run">驗證中</span></div>
+            <div class="v3-qmeta">Lv.2 · DOMjudge 判定中 · 1 分鐘前</div>
+          </li>
+          <li class="v3-qitem">
+            <div class="v3-qrow"><b>實作二分搜尋</b><span class="v3-st st--ok">已核准</span></div>
+            <div class="v3-qmeta">Lv.2 · 測試 5/5 通過 · 昨天</div>
+          </li>
+          <li class="v3-qitem">
+            <div class="v3-qrow"><b>實作快速排序</b><span class="v3-st st--bad">已退回</span></div>
+            <div class="v3-qmeta">Lv.3 · 案例覆蓋不足 · 昨天</div>
+          </li>
+          <li class="v3-qitem">
+            <div class="v3-qrow"><b>字串反轉（位元級）</b><span class="v3-st st--gen">生成中</span></div>
+            <div class="v3-qmeta">Lv.1 · AI 出題中</div>
+          </li>
+        </ul>
+      </aside>
+
+      <div class="v3-main">
+        <article class="card v3-detail">
+          <div class="v3-detail__head">
+            <h2>實作 lower_bound</h2>
+            <span class="v3-lv">Lv.3</span>
+            <span class="v3-tag">二分搜尋</span>
+            <span class="v3-tag">邊界處理</span>
+          </div>
+          <div class="v3-pipe" aria-label="驗證流程狀態">
+            <span class="v3-step v3-step--done"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8.2l1.8 1.8 3.2-3.6"/></svg>AI 生成</span>
+            <span class="v3-step__line" aria-hidden="true"></span>
+            <span class="v3-step v3-step--done"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8.2l1.8 1.8 3.2-3.6"/></svg>測試案例驗證 5/5</span>
+            <span class="v3-step__line" aria-hidden="true"></span>
+            <span class="v3-step v3-step--done"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8.2l1.8 1.8 3.2-3.6"/></svg>DOMjudge 判定</span>
+            <span class="v3-step__line" aria-hidden="true"></span>
+            <span class="v3-step v3-step--now"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/></svg>教師審核</span>
+          </div>
+          <p class="v3-desc">給定遞增整數陣列 arr 與目標值 target，回傳 arr 中第一個 ≥ target 元素的下標；若全部元素都小於 target，回傳 arr.length。</p>
+          <h3 class="v3-sub-h">測試案例驗證（模型解答）</h3>
+          <div class="v3-tbl-wrap">
+            <table class="v3-tbl">
+              <thead>
+                <tr><th>案例</th><th>說明</th><th>模型解答</th><th>結果</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="num">TC1</td><td>基礎命中</td><td class="num">21 ms</td><td><span class="v3-ok">通過</span></td></tr>
+                <tr><td class="num">TC2</td><td>target 為首元素</td><td class="num">18 ms</td><td><span class="v3-ok">通過</span></td></tr>
+                <tr><td class="num">TC3</td><td>target 超出最大值</td><td class="num">19 ms</td><td><span class="v3-ok">通過</span></td></tr>
+                <tr><td class="num">TC4</td><td>重複元素·回傳最早位置</td><td class="num">23 ms</td><td><span class="v3-ok">通過</span></td></tr>
+                <tr><td class="num">TC5</td><td>空陣列</td><td class="num">16 ms</td><td><span class="v3-ok">通過</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="v3-note">驗證方式：以模型解答跑過全部測試案例，再由 DOMjudge 做確定性判定；判定結果可重現，供教師抽查。</p>
+        </article>
+
+        <article class="card">
+          <h3 class="v3-sub-h" style="margin-top:0">審核操作</h3>
+          <div class="v3-actions">
+            <button class="btn btn-primary">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg>
+              核准入庫
+            </button>
+            <button class="btn btn-danger">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3L4 8l5 5M4 8h9"/></svg>
+              退回修正
+            </button>
+          </div>
+          <label class="v3-label" for="v3-note">退回備註（退回時必填）</label>
+          <textarea id="v3-note" class="v3-textarea" rows="3" placeholder="例如：TC4 未涵蓋重複元素，請補充測試案例後重新驗證"></textarea>
+          <p class="v3-note2">核准後，題目進入練習庫，可被自適應推薦指派給 Lv.3 的學生；退回時備註會連同題目交回 AI 重新生成。</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="variant-switcher" role="toolbar" aria-label="變體切換">
+  <button class="vs-btn" data-variant-prev aria-label="上一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <span class="vs-label" data-variant-label aria-live="polite">1 (判題工作區)</span>
+  <button class="vs-btn" data-variant-next aria-label="下一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+</div>
+
+<script>
+(function () {
+  var NAMES = { '1': '判題工作區', '2': '難度階梯', '3': '審核工作台' };
+  var KEYS = ['1', '2', '3'];
+  var label = document.querySelector('[data-variant-label]');
+
+  function current() {
+    var p = new URLSearchParams(location.search);
+    var v = p.get('variant');
+    return KEYS.indexOf(v) >= 0 ? v : '1';
+  }
+
+  function setVariant(v) {
+    document.querySelectorAll('section.variant').forEach(function (s) {
+      s.hidden = s.getAttribute('data-variant') !== v;
+    });
+    label.textContent = v + ' (' + NAMES[v] + ')';
+    try {
+      var p = new URLSearchParams(location.search);
+      p.set('variant', v);
+      history.replaceState(null, '', '?' + p.toString());
+    } catch (err) {
+      try { location.search = '?variant=' + v; } catch (e2) {}
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function cycle(d) {
+    var i = KEYS.indexOf(current());
+    setVariant(KEYS[(i + d + 3) % 3]);
+  }
+
+  document.querySelector('[data-variant-prev]').addEventListener('click', function () { cycle(-1); });
+  document.querySelector('[data-variant-next]').addEventListener('click', function () { cycle(1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var t = document.activeElement;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    cycle(e.key === 'ArrowRight' ? 1 : -1);
+  });
+
+  setVariant(current());
+})();
+</script>
+</body>
+</html>

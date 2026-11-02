@@ -1,0 +1,789 @@
+<!-- 設計問題：CampusFix「長什麼樣子？」— 三個結構迥異的變體（?variant=1 工單工作台：佇列＋詳情時間軸／2 掃碼報修精靈：單卡四步流程／3 案例知識庫：搜尋優先＋維修手冊），共用同一組合成報修資料，供評審挑選方向。 -->
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CampusFix 校園設備報修 — UI 原型（第一版）</title>
+<style>
+:root{
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+  --fs-xs:12px; --fs-sm:13.5px; --fs-md:15px; --fs-lg:17px; --fs-xl:21px; --fs-2xl:28px;
+  --font: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Cascadia Mono", monospace;
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+  --sh-sm: 0 1px 2px rgba(22,26,33,.05), 0 2px 8px rgba(22,26,33,.07);
+  --sh-md: 0 2px 6px rgba(22,26,33,.14), 0 14px 32px rgba(22,26,33,.22);
+  --meta-bg:#16181D; --meta-ink:#F2F4F8; --meta-accent:#FFC53D;
+}
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{ font-family:var(--font); font-size:var(--fs-md); line-height:1.6; -webkit-font-smoothing:antialiased; }
+svg{ display:block; }
+.ic{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+button{ font:inherit; cursor:pointer; }
+[hidden]{ display:none !important; }
+.variant-panel{ min-height:100vh; min-height:100svh; padding:56px var(--sp-4) 104px; }
+@media (min-width:700px){ .variant-panel{ padding-left:var(--sp-6); padding-right:var(--sp-6); } }
+button:focus-visible, .v1-queue li:focus-visible, .v3-case:focus-visible, .v3-chip:focus-visible{ outline:2.5px solid var(--accent); outline-offset:2px; }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation:none !important; transition:none !important; } }
+.proto-banner{ position:fixed; top:0; left:0; right:0; z-index:95; display:flex; justify-content:center; align-items:center; gap:var(--sp-2); padding:var(--sp-1) var(--sp-2); background:var(--meta-bg); color:#DDE2EA; font-size:var(--fs-xs); letter-spacing:.05em; border-bottom:1px solid rgba(255,255,255,.14); }
+.proto-dot{ width:8px; height:8px; border-radius:50%; background:var(--meta-accent); flex:none; }
+.switcher{ position:fixed; bottom:var(--sp-4); left:50%; transform:translateX(-50%); z-index:95; display:flex; align-items:center; gap:var(--sp-1); max-width:calc(100vw - 24px); background:var(--meta-bg); color:var(--meta-ink); border:1px solid rgba(255,255,255,.2); border-radius:var(--r-pill); padding:var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-2); box-shadow:var(--sh-md); }
+.switcher button{ display:grid; place-items:center; width:32px; height:32px; flex:none; border:none; border-radius:50%; background:rgba(255,255,255,.1); color:inherit; }
+.switcher button:hover{ background:rgba(255,255,255,.22); }
+.switcher .ic{ width:18px; }
+[data-variant-label]{ font-size:var(--fs-sm); font-weight:600; min-width:126px; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+/* ============ 變體 1：工單工作台（冷調維運控制台） ============ */
+.v1{ --bg:#EEF1F5; --surface:#FFFFFF; --ink:#1A2430; --ink-2:#5C6C7E; --ink-3:#93A1B0; --line:#DCE3EA; --accent:#0E5F96; --accent-soft:#E4EEF6; --amber-t:#8A4B08; --amber-b:#FBEED3; --green-t:#1D6B3C; --green-b:#DDF2E4; background:var(--bg); color:var(--ink); }
+.v1::selection{ background:#BBD7EA; }
+.v1-top{ display:flex; align-items:center; gap:var(--sp-3) var(--sp-4); flex-wrap:wrap; max-width:1120px; margin:0 auto var(--sp-5); }
+.v1-brand{ display:flex; align-items:center; gap:var(--sp-2); }
+.v1-logo{ width:36px; height:36px; border-radius:10px; background:var(--accent); color:#fff; display:grid; place-items:center; }
+.v1-logo .ic{ width:19px; }
+.v1-name{ font-weight:800; font-size:var(--fs-lg); letter-spacing:-.01em; line-height:1.2; }
+.v1-name small{ display:block; font-size:var(--fs-xs); font-weight:600; color:var(--ink-2); letter-spacing:.04em; }
+.v1-loc{ display:inline-flex; align-items:center; gap:6px; margin-left:auto; font-size:var(--fs-sm); color:var(--ink-2); font-weight:600; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-pill); padding:var(--sp-1) var(--sp-3); }
+.v1-loc .ic{ width:15px; }
+.v1-cta{ display:inline-flex; align-items:center; gap:var(--sp-1); background:var(--accent); color:#fff; border:none; border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); font-weight:700; font-size:var(--fs-sm); box-shadow:var(--sh-sm); }
+.v1-cta .ic{ width:15px; }
+.v1-cta:hover{ filter:brightness(1.08); }
+.v1-main{ max-width:1120px; margin:0 auto; display:grid; grid-template-columns:320px minmax(0,1fr); gap:var(--sp-5); align-items:start; }
+@media (max-width:860px){ .v1-main{ grid-template-columns:1fr; } }
+.v1-queue{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.v1-queue-head{ display:flex; justify-content:space-between; align-items:center; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); font-size:var(--fs-xs); font-weight:800; letter-spacing:.08em; color:var(--ink-2); border-bottom:1px solid var(--line); }
+.v1-queue ul{ list-style:none; margin:0; padding:0; }
+.v1-queue li{ padding:var(--sp-3) var(--sp-4); cursor:pointer; }
+.v1-queue li + li{ border-top:1px solid var(--line); }
+.v1-queue li.active{ background:var(--accent-soft); }
+.v1-q-top{ display:flex; justify-content:space-between; align-items:center; gap:var(--sp-2); }
+.v1-q-id{ font-family:var(--mono); font-size:var(--fs-xs); color:var(--ink-2); font-variant-numeric:tabular-nums; letter-spacing:.03em; }
+.chip{ font-size:var(--fs-xs); font-weight:700; padding:2px 10px; border-radius:var(--r-pill); letter-spacing:.05em; }
+.chip-progress{ background:var(--amber-b); color:var(--amber-t); }
+.chip-done{ background:var(--green-b); color:var(--green-t); }
+.v1-q-title{ font-weight:700; font-size:var(--fs-md); margin-top:var(--sp-1); }
+.v1-queue li.active .v1-q-title{ color:var(--accent); }
+.v1-q-meta{ display:flex; align-items:center; gap:6px; font-size:var(--fs-xs); color:var(--ink-2); margin-top:2px; }
+.v1-q-meta .ic{ width:14px; }
+.v1-d{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; min-width:0; }
+.v1-d-head{ padding:var(--sp-5) var(--sp-5) var(--sp-4); border-bottom:1px solid var(--line); }
+.v1-d-row{ display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; }
+.v1-d-title{ margin:0; font-size:var(--fs-xl); font-weight:800; letter-spacing:-.01em; }
+.v1-d-meta{ display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-5); margin:var(--sp-3) 0 0; }
+.v1-d-meta div{ display:flex; gap:var(--sp-1); font-size:var(--fs-sm); }
+.v1-d-meta dt{ color:var(--ink-2); }
+.v1-d-meta dd{ margin:0; font-weight:600; font-variant-numeric:tabular-nums; }
+.v1-d-body{ display:grid; grid-template-columns:260px minmax(0,1fr); gap:var(--sp-5); padding:var(--sp-5); }
+@media (max-width:640px){ .v1-d-body{ grid-template-columns:1fr; } }
+.v1-d-body.single{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+@media (max-width:760px){ .v1-d-body.single{ grid-template-columns:1fr; } }
+.v1-photo{ border-radius:var(--r-md); overflow:hidden; border:1px solid var(--line); }
+.v1-photo svg{ width:100%; height:auto; }
+.v1-photo-tag{ display:flex; align-items:center; gap:6px; font-size:var(--fs-xs); color:var(--ink-2); margin:var(--sp-2) 0 0; }
+.v1-photo-tag .ic{ width:14px; }
+.v1-sec{ margin:0 0 var(--sp-3); font-size:var(--fs-xs); font-weight:800; letter-spacing:.12em; color:var(--ink-2); }
+.v1-tl{ list-style:none; margin:0; padding:0; }
+.v1-tl li{ position:relative; padding:0 0 var(--sp-4) var(--sp-6); }
+.v1-tl li:last-child{ padding-bottom:0; }
+.v1-tl li::before{ content:""; position:absolute; left:7px; top:20px; bottom:-4px; width:2px; background:var(--line); }
+.v1-tl li:last-child::before{ display:none; }
+.v1-tl .dot{ position:absolute; left:0; top:4px; width:16px; height:16px; border-radius:50%; background:#fff; border:2.5px solid var(--ink-3); }
+.v1-tl li.done .dot{ background:var(--accent); border-color:var(--accent); }
+.v1-tl li.current .dot{ background:var(--amber-t); border-color:var(--amber-t); }
+.v1-tl li.current .dot::after{ content:""; position:absolute; inset:-5px; border-radius:50%; border:2px solid rgba(138,75,8,.4); animation:tf-pulse 2s ease-out infinite; }
+@keyframes tf-pulse{ 0%{ transform:scale(.72); opacity:.9; } 100%{ transform:scale(1.3); opacity:0; } }
+.v1-tl li.pending .t-title{ color:var(--ink-2); }
+.v1-tl li.pending .t-desc{ color:var(--ink-2); }
+.v1-tl li.pending .t-time{ color:var(--ink-2); }
+.t-time{ display:block; font-family:var(--mono); font-size:var(--fs-xs); color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.t-title{ display:block; font-weight:700; font-size:var(--fs-md); margin-top:1px; }
+.t-desc{ display:block; font-size:var(--fs-sm); color:var(--ink-2); margin-top:1px; }
+.v1-dispatch{ display:flex; gap:var(--sp-3); align-items:center; margin-top:var(--sp-4); background:var(--accent-soft); border-radius:var(--r-md); padding:var(--sp-3); }
+.v1-av{ width:36px; height:36px; flex:none; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:800; }
+.v1-dispatch-info{ display:flex; flex-direction:column; min-width:0; font-size:var(--fs-sm); }
+.v1-dispatch-info b{ font-weight:700; }
+.v1-dispatch-info small{ color:var(--ink-2); font-size:var(--fs-xs); }
+.v1-rows{ margin:0; }
+.v1-rows > div{ display:flex; justify-content:space-between; gap:var(--sp-3); padding:var(--sp-2) 0; border-bottom:1px solid var(--line); font-size:var(--fs-sm); }
+.v1-rows > div:last-child{ border-bottom:none; }
+.v1-rows span{ color:var(--ink-2); flex:none; }
+.v1-rows b{ font-weight:600; text-align:right; font-variant-numeric:tabular-nums; }
+.v1-note{ margin-top:var(--sp-4); background:var(--amber-b); color:var(--amber-t); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-4); font-size:var(--fs-sm); }
+.v1-link{ background:none; border:none; padding:0; margin-left:var(--sp-1); color:inherit; font:inherit; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
+.v1-sim{ border-top:1px solid var(--line); padding:var(--sp-4) var(--sp-5) var(--sp-5); background:#F8FAFC; }
+.v1-sim-head{ font-size:var(--fs-xs); font-weight:800; letter-spacing:.1em; color:var(--ink-2); margin-bottom:var(--sp-1); }
+.v1-sim-item{ display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left; background:none; border:none; padding:var(--sp-2) 0; font-size:var(--fs-sm); color:var(--ink); cursor:pointer; }
+.v1-sim-item .ic-lead{ width:18px; color:var(--ink-2); flex:none; }
+.v1-sim-item > span{ flex:1; min-width:0; }
+.v1-sim-item em{ display:block; font-style:normal; font-family:var(--mono); font-size:var(--fs-xs); color:var(--ink-2); margin-top:1px; }
+.v1-sim-item .ic-go{ width:15px; color:var(--accent); flex:none; }
+.v1-sim-item:hover b{ text-decoration:underline; }
+/* ============ 變體 2：掃碼報修精靈（安全橘行動流程） ============ */
+.v2{ --bg:#FAF5EC; --surface:#FFFFFF; --ink:#201A13; --ink-2:#6B5F4E; --line:#E8DFCE; --accent:#E4570F; --accent-deep:#B8430A; --accent-soft:#FDE8D7; --ok:#1E7A46; --ok-soft:#DFF2E7; background:var(--bg); color:var(--ink); }
+.v2::selection{ background:#F8C9A8; }
+.v2-wrap{ max-width:640px; margin:0 auto; }
+.v2-head{ display:flex; gap:var(--sp-3); align-items:center; margin-bottom:var(--sp-5); }
+.v2-logo{ width:44px; height:44px; flex:none; border-radius:12px; background:var(--accent); color:#fff; display:grid; place-items:center; box-shadow:var(--sh-sm); }
+.v2-logo .ic{ width:22px; }
+.v2-head h1{ margin:0; font-size:var(--fs-lg); font-weight:800; letter-spacing:-.01em; }
+.v2-sub{ font-size:var(--fs-xs); color:var(--ink-2); margin-top:2px; }
+.v2-dots{ display:flex; gap:var(--sp-2); margin-bottom:var(--sp-5); }
+.v2-dot{ flex:1; min-width:0; }
+.v2-dot .bar{ display:block; height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+.v2-dot .bar i{ display:block; height:100%; width:0; background:var(--accent); transition:width .3s ease-out; }
+.v2-dot.done .bar i, .v2-dot.active .bar i{ width:100%; }
+.v2-dot .lbl{ display:block; margin-top:var(--sp-1); font-size:var(--fs-xs); font-weight:600; color:var(--ink-2); white-space:nowrap; }
+.v2-dot.active .lbl{ color:var(--accent-deep); font-weight:800; }
+.v2-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-sm); padding:var(--sp-5); }
+.v2-stepview h2{ margin:0 0 var(--sp-1); font-size:var(--fs-xl); font-weight:800; letter-spacing:-.01em; }
+.v2-stepview .hint{ margin:0 0 var(--sp-4); color:var(--ink-2); font-size:var(--fs-sm); }
+.v2-stepview:not([hidden]){ animation:v2-in .28s ease-out; }
+@keyframes v2-in{ from{ opacity:0; transform:translateY(7px); } }
+.v2-qr{ position:relative; width:200px; margin:var(--sp-2) auto var(--sp-4); }
+.v2-qr svg{ width:100%; height:auto; border-radius:var(--r-md); border:1px solid var(--line); box-shadow:var(--sh-sm); }
+.v2-qr .scanline{ position:absolute; left:9%; right:9%; top:10%; height:4px; border-radius:2px; background:var(--accent); animation:v2-scan 2.4s ease-in-out infinite; }
+@keyframes v2-scan{ 0%,100%{ top:10%; } 50%{ top:88%; } }
+.v2-scanresult{ display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-4); align-items:center; background:#FBF7EF; border:1px solid var(--line); border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-sm); font-weight:600; }
+.v2-scanresult .r{ display:inline-flex; align-items:center; gap:6px; }
+.v2-scanresult .ic{ width:15px; color:var(--ink-2); }
+.v2-scanresult .cap{ width:100%; font-size:var(--fs-xs); font-weight:500; color:var(--ink-2); }
+.v2-photos{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:var(--sp-3); margin-bottom:var(--sp-4); }
+.v2-photo{ aspect-ratio:4/3; border-radius:var(--r-md); display:grid; place-items:center; position:relative; padding:var(--sp-2); }
+.v2-photo-up{ background:#F1EBDD; border:1px solid var(--line); }
+.v2-photo-up .ic{ width:36px; opacity:.45; color:#8A7A5F; }
+.v2-photo .fname{ position:absolute; left:var(--sp-2); bottom:var(--sp-2); font-family:var(--mono); font-size:11px; color:var(--ink-2); background:rgba(255,255,255,.75); padding:1px 6px; border-radius:4px; }
+.v2-photo-add{ border:1.5px dashed #C9B899; background:transparent; color:var(--ink-2); flex-direction:column; gap:var(--sp-1); font-size:var(--fs-sm); font-weight:600; }
+.v2-photo-add .ic{ width:22px; }
+.v2-photo-add:hover{ border-color:var(--accent); color:var(--accent-deep); }
+.v2-field{ display:block; margin-top:var(--sp-2); }
+.v2-flabel{ display:block; font-size:var(--fs-sm); font-weight:600; margin-bottom:var(--sp-1); }
+.v2-input{ width:100%; border:1.5px solid var(--line); border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); font:inherit; background:#fff; color:var(--ink); }
+.v2-input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(228,87,15,.15); }
+.v2-rows{ border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; }
+.v2-row{ display:flex; justify-content:space-between; gap:var(--sp-3); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-sm); border-bottom:1px solid var(--line); background:#fff; }
+.v2-row:last-child{ border-bottom:none; }
+.v2-row > span{ color:var(--ink-2); flex:none; }
+.v2-row > b{ font-weight:600; text-align:right; font-variant-numeric:tabular-nums; }
+.v2-cat{ color:var(--accent-deep); }
+.v2-row-ta{ display:block; }
+.v2-ta{ width:100%; border:none; margin-top:var(--sp-1); font:inherit; color:var(--ink); resize:vertical; background:transparent; display:block; }
+.v2-ta:focus{ outline:2px solid var(--accent); outline-offset:2px; }
+.v2-ok{ text-align:center; }
+.v2-okmark{ width:64px; height:64px; margin:var(--sp-1) auto var(--sp-4); border-radius:50%; background:var(--ok-soft); color:var(--ok); display:grid; place-items:center; }
+.v2-okmark .ic{ width:32px; stroke-width:2.2; }
+.v2-tid{ font-family:var(--mono); font-size:var(--fs-lg); color:var(--accent-deep); font-variant-numeric:tabular-nums; letter-spacing:.03em; }
+.v2-okrows{ text-align:left; margin-top:var(--sp-4); }
+.v2-ghost{ margin-top:var(--sp-5); width:100%; display:flex; justify-content:center; gap:var(--sp-2); padding:var(--sp-3); border-radius:var(--r-md); border:1.5px solid var(--line); background:#fff; color:var(--ink); font-weight:600; font-size:var(--fs-sm); }
+.v2-ghost .ic{ width:16px; color:var(--accent-deep); }
+.v2-ghost:hover{ border-color:var(--accent); }
+.v2-nav{ display:flex; gap:var(--sp-3); margin-top:var(--sp-5); }
+.v2-prev{ flex:none; padding:var(--sp-3) var(--sp-4); border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--surface); color:var(--ink-2); font-weight:600; }
+.v2-prev:hover{ border-color:#C9B899; color:var(--ink); }
+.v2-next{ flex:1; display:flex; justify-content:center; align-items:center; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); border:none; border-radius:var(--r-md); background:var(--accent); color:#fff; font-weight:800; font-size:var(--fs-lg); box-shadow:var(--sh-sm); }
+.v2-next .ic{ width:18px; }
+.v2-next:hover{ filter:brightness(1.07); }
+.v2-foot{ margin-top:var(--sp-4); text-align:center; font-size:var(--fs-xs); color:var(--ink-2); }
+/* ============ 變體 3：案例知識庫（紙本維修手冊） ============ */
+.v3{ --bg:#F5EFE2; --surface:#FFFCF4; --ink:#2A2116; --ink-2:#71644F; --line:#E1D6BE; --accent:#B23A22; --accent-soft:#F7E4DC; --stamp-green:#4A6B47; background:var(--bg); color:var(--ink); }
+.v3::selection{ background:#EFC9BC; }
+.v3-head{ display:flex; justify-content:space-between; gap:var(--sp-4); flex-wrap:wrap; background:#241C11; color:#F3EAD7; border-radius:var(--r-lg); padding:var(--sp-5); margin-bottom:var(--sp-5); }
+.v3-head h1{ margin:0; font-size:var(--fs-2xl); font-weight:800; letter-spacing:-.01em; }
+.v3-sub{ margin:var(--sp-2) 0 0; max-width:46ch; font-size:var(--fs-sm); color:#CBBB9B; }
+.v3-stat{ flex:none; align-self:center; text-align:right; font-size:var(--fs-xs); color:#C9B895; }
+.v3-stat b{ display:block; font-size:var(--fs-xl); font-weight:800; color:#F3EAD7; font-variant-numeric:tabular-nums; line-height:1.2; }
+.v3-searchrow{ display:flex; gap:var(--sp-3); flex-wrap:wrap; align-items:center; margin-bottom:var(--sp-5); }
+.v3-search{ flex:1 1 280px; display:flex; align-items:center; gap:var(--sp-2); background:var(--surface); border:1.5px solid var(--ink); border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); box-shadow:var(--sh-sm); }
+.v3-search .ic{ width:18px; color:var(--ink-2); flex:none; }
+.v3-input{ flex:1; min-width:0; border:none; background:transparent; font:inherit; color:var(--ink); padding:2px 0; }
+.v3-input::placeholder{ color:#A2957C; }
+.v3-input:focus{ outline:none; }
+.v3-search:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(178,58,34,.15); }
+.v3-chips{ display:flex; gap:var(--sp-2); flex-wrap:wrap; }
+.v3-chip{ border:1.5px solid var(--ink); background:transparent; color:var(--ink); border-radius:var(--r-pill); padding:var(--sp-1) var(--sp-3); font-size:var(--fs-sm); font-weight:600; }
+.v3-chip:hover{ background:rgba(42,33,22,.06); }
+.v3-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.v3-cases{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:var(--sp-4); }
+.v3-case{ position:relative; background:var(--surface); border:1.5px solid var(--line); border-radius:var(--r-md); padding:var(--sp-4); cursor:pointer; transition:border-color .15s ease-out, box-shadow .15s ease-out; }
+.v3-case:hover{ border-color:#B9A97F; box-shadow:var(--sh-sm); }
+.v3-case.selected{ border-color:var(--accent); box-shadow:var(--sh-sm); }
+.v3-no{ font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:.08em; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.v3-case h2{ margin:var(--sp-1) 0 var(--sp-2); font-size:var(--fs-lg); font-weight:800; }
+.v3-tags{ display:flex; flex-wrap:wrap; gap:var(--sp-1); }
+.v3-tag{ font-size:var(--fs-xs); font-weight:600; background:var(--accent-soft); color:var(--accent); padding:1px 9px; border-radius:var(--r-pill); }
+.v3-when{ display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-3); margin-top:var(--sp-3); font-size:var(--fs-xs); color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.v3-when span{ display:inline-flex; align-items:center; gap:5px; }
+.v3-when .ic{ width:14px; }
+.v3-stamp{ position:absolute; top:var(--sp-3); right:var(--sp-3); transform:rotate(-6deg); border:2px solid var(--stamp-green); color:var(--stamp-green); font-size:var(--fs-xs); font-weight:800; letter-spacing:.22em; padding:2px 5px 2px 9px; border-radius:5px; opacity:.8; }
+.v3-empty{ margin-bottom:var(--sp-6); border:1.5px dashed #B9A97F; border-radius:var(--r-md); background:rgba(255,252,244,.6); padding:var(--sp-6); text-align:center; color:var(--ink-2); font-size:var(--fs-sm); }
+.v3-sheets{ margin-top:var(--sp-6); }
+.v3-sheet{ position:relative; background:var(--surface); border:1.5px solid var(--ink); border-radius:var(--r-md); box-shadow:var(--sh-sm); padding:var(--sp-5); animation:v3-in .3s ease-out; }
+@keyframes v3-in{ from{ opacity:0; transform:translateY(9px); } }
+.v3-sheet-no{ position:absolute; top:0; right:var(--sp-5); font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:.08em; color:var(--ink-2); }
+.v3-sheet h3{ margin:0; font-size:var(--fs-xl); font-weight:800; letter-spacing:-.01em; }
+.v3-d-meta{ display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-4); margin:var(--sp-2) 0 0; font-size:var(--fs-sm); color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.v3-d-meta span{ display:inline-flex; align-items:center; gap:6px; }
+.v3-d-meta .ic{ width:15px; }
+.v3-chip-done{ display:inline-flex; align-items:center; border:1.5px solid var(--stamp-green); color:var(--stamp-green); font-size:var(--fs-xs); font-weight:700; letter-spacing:.16em; padding:0 9px 0 11px; border-radius:var(--r-pill); }
+.v3-d-sec{ margin-top:var(--sp-4); }
+.v3-d-sec h4{ margin:0 0 var(--sp-2); font-size:var(--fs-xs); font-weight:800; letter-spacing:.16em; color:var(--accent); }
+.v3-d-sec > p{ margin:0; font-size:var(--fs-sm); }
+.v3-steps{ list-style:none; counter-reset:v3st; margin:0; padding:0; display:grid; grid-template-columns:1fr; row-gap:36px; }
+.v3-steps li{ counter-increment:v3st; position:relative; padding:0 0 0 var(--sp-6); font-size:var(--fs-sm); }
+.v3-steps li:last-child{ padding-bottom:0; }
+.v3-steps li::before{ content:counter(v3st, decimal-leading-zero); position:absolute; left:0; top:1px; width:22px; height:22px; display:grid; place-items:center; border:1.5px solid var(--accent); color:var(--accent); border-radius:50%; font-family:var(--mono); font-size:10.5px; font-weight:700; }
+.v3-rows{ margin:0; }
+.v3-rows > div{ display:flex; justify-content:space-between; gap:var(--sp-3); padding:var(--sp-2) 0; border-bottom:1px dashed var(--line); font-size:var(--fs-sm); }
+.v3-rows > div:last-child{ border-bottom:none; }
+.v3-rows span{ color:var(--ink-2); flex:none; }
+.v3-rows b{ font-weight:600; text-align:right; font-variant-numeric:tabular-nums; }
+.v3-xlink{ margin-top:var(--sp-4); }
+.v3-xlink button{ display:inline-flex; align-items:center; gap:var(--sp-1); background:none; border:none; padding:0; color:var(--accent); font:inherit; font-size:var(--fs-sm); font-weight:700; cursor:pointer; }
+.v3-xlink .ic{ width:15px; }
+.v3-xlink button:hover{ text-decoration:underline; text-underline-offset:3px; }
+.v3-foot{ margin-top:var(--sp-6); text-align:center; font-size:var(--fs-xs); color:var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="proto-banner" data-prototype-banner><span class="proto-dot" aria-hidden="true"></span>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
+<main>
+<section class="v1 variant-panel" data-variant-panel="1" aria-label="變體 1：工單工作台">
+  <header class="v1-top">
+    <div class="v1-brand">
+      <span class="v1-logo" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+      <span class="v1-name">CampusFix<small>校園設備報修・維運控制台</small></span>
+    </div>
+    <span class="v1-loc"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11.5-8 11.5S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>教學區</span>
+    <button type="button" class="v1-cta" data-goto="2" title="開啟報修精靈（變體 2）"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5.5" x2="12" y2="18.5"/><line x1="5.5" y1="12" x2="18.5" y2="12"/></svg>新工單</button>
+  </header>
+  <div class="v1-main">
+    <aside class="v1-queue" aria-label="工單佇列">
+      <div class="v1-queue-head"><span>工單佇列</span><span>3 件・合成資料</span></div>
+      <ul>
+        <li data-ticket="t1" class="active" tabindex="0">
+          <div class="v1-q-top"><span class="v1-q-id">RF-1031-012</span><span class="chip chip-progress">處理中</span></div>
+          <div class="v1-q-title">投影機開機無畫面</div>
+          <div class="v1-q-meta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>教學大樓 A302・2 天前</div>
+        </li>
+        <li data-ticket="t2" tabindex="0">
+          <div class="v1-q-top"><span class="v1-q-id">RF-0318-007</span><span class="chip chip-done">已完成</span></div>
+          <div class="v1-q-title">投影燈泡更換（同一台）</div>
+          <div class="v1-q-meta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>教學大樓 A302・03-18</div>
+        </li>
+        <li data-ticket="t3" tabindex="0">
+          <div class="v1-q-top"><span class="v1-q-id">RF-0802-021</span><span class="chip chip-done">已完成</span></div>
+          <div class="v1-q-title">冷氣不冷、出風正常</div>
+          <div class="v1-q-meta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="11" rx="2.5"/><line x1="6.5" y1="9" x2="12" y2="9"/><line x1="6.5" y1="12" x2="14" y2="12"/><g transform="translate(17.5 10.5)"><line x1="-2.8" y1="0" x2="2.8" y2="0"/><line x1="-1.4" y1="-2.4" x2="1.4" y2="2.4"/><line x1="-1.4" y1="2.4" x2="1.4" y2="-2.4"/></g></svg>行政大樓 3F・08-02</div>
+        </li>
+      </ul>
+    </aside>
+    <div>
+      <article class="v1-d" data-ticket="t1">
+        <header class="v1-d-head">
+          <div class="v1-d-row">
+            <h2 class="v1-d-title">投影機開機無畫面</h2>
+            <span class="chip chip-progress">處理中</span>
+          </div>
+          <dl class="v1-d-meta">
+            <div><dt>工單編號</dt><dd>RF-1031-012</dd></div>
+            <div><dt>地點</dt><dd>教學大樓 A302 教室</dd></div>
+            <div><dt>設備</dt><dd>教室投影機 PJ-A302-01</dd></div>
+            <div><dt>分類</dt><dd>顯示設備／投影機</dd></div>
+            <div><dt>報修人</dt><dd>資管系學生（示例）</dd></div>
+            <div><dt>報修時間</dt><dd>2026-10-31 09:12</dd></div>
+          </dl>
+        </header>
+        <div class="v1-d-body">
+          <div>
+            <div class="v1-photo" role="img" aria-label="教室投影機示意照片">
+              <svg viewBox="0 0 400 300" aria-hidden="true">
+                <rect width="400" height="300" fill="#414A55"/>
+                <rect y="242" width="400" height="58" fill="#333B44"/>
+                <rect x="222" y="42" width="148" height="98" rx="4" fill="#E9E3D2"/>
+                <rect x="222" y="42" width="148" height="98" rx="4" fill="none" stroke="#2C333B" stroke-width="6"/>
+                <polygon points="98,150 222,64 222,126 98,170" fill="rgba(255,244,200,.16)"/>
+                <rect x="58" y="140" width="72" height="34" rx="6" fill="#D7DCE1"/>
+                <circle cx="120" cy="157" r="9" fill="#8FA0AE"/>
+                <circle cx="120" cy="157" r="4.5" fill="#39424C"/>
+                <circle cx="72" cy="150" r="3.5" fill="#E4572B"/>
+                <rect x="68" y="174" width="6" height="52" fill="#5B6672"/>
+                <rect x="108" y="174" width="6" height="52" fill="#5B6672"/>
+                <rect x="58" y="226" width="62" height="6" rx="3" fill="#5B6672"/>
+              </svg>
+            </div>
+            <p class="v1-photo-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 18.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2h3.2L8.4 4h7.2l1.2 2.5H20a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/></svg>現場照片 1/1（合成示意圖）</p>
+          </div>
+          <div>
+            <h3 class="v1-sec">處理進度</h3>
+            <ol class="v1-tl">
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">10-31 09:12</span><span class="t-title">QR 掃碼報修</span><span class="t-desc">由設備 QR 碼於教學大樓 A302 提出</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">10-31 09:14</span><span class="t-title">自動分類</span><span class="t-desc">顯示設備／投影機・開機無畫面</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">10-31 10:02</span><span class="t-title">已派工</span><span class="t-desc">派至 IT 組・王技師（示例）受理</span></li>
+              <li class="current"><span class="dot" aria-hidden="true"></span><span class="t-time">11-01 14:30</span><span class="t-title">處理中</span><span class="t-desc">技師至現場檢查，初步判斷燈泡老化，已調度 replacement 燈泡</span></li>
+              <li class="pending"><span class="dot" aria-hidden="true"></span><span class="t-time">尚未進行</span><span class="t-title">待驗收</span><span class="t-desc">報修人確認修復後結案</span></li>
+            </ol>
+            <div class="v1-dispatch">
+              <span class="v1-av" aria-hidden="true">王</span>
+              <span class="v1-dispatch-info"><b>IT 組・王技師（示例）</b><small>10-31 10:02 受理・預計 24 小時內完成</small></span>
+            </div>
+          </div>
+        </div>
+        <div class="v1-sim">
+          <div class="v1-sim-head">相似案例（歷史維修紀錄）</div>
+          <button type="button" class="v1-sim-item" data-goto="3">
+            <svg class="ic ic-lead" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>
+            <span><b>投影燈泡更換 — 同一台 PJ-A302-01</b><em>CF-2026-031・已完修</em></span>
+            <svg class="ic ic-go" viewBox="0 0 24 24" aria-hidden="true"><line x1="4.5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </button>
+          <button type="button" class="v1-sim-item" data-goto="3">
+            <svg class="ic ic-lead" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>
+            <span><b>投影畫面模糊、聚焦失準</b><em>CF-2026-055・已完修</em></span>
+            <svg class="ic ic-go" viewBox="0 0 24 24" aria-hidden="true"><line x1="4.5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </button>
+        </div>
+      </article>
+            <article class="v1-d" data-ticket="t2" hidden>
+        <header class="v1-d-head">
+          <div class="v1-d-row">
+            <h2 class="v1-d-title">投影燈泡更換</h2>
+            <span class="chip chip-done">已完成</span>
+          </div>
+          <dl class="v1-d-meta">
+            <div><dt>工單編號</dt><dd>RF-0318-007</dd></div>
+            <div><dt>地點</dt><dd>教學大樓 A302 教室</dd></div>
+            <div><dt>設備</dt><dd>教室投影機 PJ-A302-01（同一台）</dd></div>
+            <div><dt>分類</dt><dd>顯示設備／投影機</dd></div>
+            <div><dt>報修時間</dt><dd>2026-03-18 08:40</dd></div>
+          </dl>
+        </header>
+        <div class="v1-d-body single">
+          <div>
+            <h3 class="v1-sec">維修摘要</h3>
+            <div class="v1-rows">
+              <div><span>故障現象</span><b>畫面變暗、間歇閃爍</b></div>
+              <div><span>處理方式</span><b>更換燈泡＋清潔散熱網</b></div>
+              <div><span>使用零件</span><b>燈泡 SL-XP210 × 1</b></div>
+              <div><span>維修耗時</span><b>40 分鐘</b></div>
+            </div>
+            <div class="v1-note">燈泡累計點亮 1,240 小時，超過 1,000 小時更換標準。此設備 10-31 再次報修「開機無畫面」<button type="button" class="v1-link" data-jump="t1">查看工單 RF-1031-012 →</button></div>
+          </div>
+          <div>
+            <h3 class="v1-sec">處理進度</h3>
+            <ol class="v1-tl">
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">03-18 08:40</span><span class="t-title">QR 掃碼報修</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">03-18 08:42</span><span class="t-title">自動分類・派工 IT 組</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">03-18 10:05</span><span class="t-title">燈泡更換完成</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">03-18 10:20</span><span class="t-title">驗收通過・結案</span></li>
+            </ol>
+          </div>
+        </div>
+      </article>
+      <article class="v1-d" data-ticket="t3" hidden>
+        <header class="v1-d-head">
+          <div class="v1-d-row">
+            <h2 class="v1-d-title">冷氣不冷、出風正常</h2>
+            <span class="chip chip-done">已完成</span>
+          </div>
+          <dl class="v1-d-meta">
+            <div><dt>工單編號</dt><dd>RF-0802-021</dd></div>
+            <div><dt>地點</dt><dd>行政大樓 3F 會議室</dd></div>
+            <div><dt>設備</dt><dd>窗型冷氣 AC-3F-02</dd></div>
+            <div><dt>分類</dt><dd>空調設備／冷氣</dd></div>
+            <div><dt>報修時間</dt><dd>2026-08-02 10:00</dd></div>
+          </dl>
+        </header>
+        <div class="v1-d-body single">
+          <div>
+            <h3 class="v1-sec">維修摘要</h3>
+            <div class="v1-rows">
+              <div><span>故障現象</span><b>室內溫度停滯 28℃、出風正常</b></div>
+              <div><span>處理方式</span><b>補充冷媒＋清洗外機散熱網</b></div>
+              <div><span>使用零件</span><b>冷媒 R410A</b></div>
+              <div><span>維修耗時</span><b>90 分鐘</b></div>
+            </div>
+          </div>
+          <div>
+            <h3 class="v1-sec">處理進度</h3>
+            <ol class="v1-tl">
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">08-02 10:00</span><span class="t-title">QR 掃碼報修</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">08-02 10:05</span><span class="t-title">自動分類・派工維修組</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">08-03 09:30</span><span class="t-title">冷媒補充完成</span></li>
+              <li class="done"><span class="dot" aria-hidden="true"></span><span class="t-time">08-03 10:15</span><span class="t-title">驗收通過・結案</span></li>
+            </ol>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+      <section class="v2 variant-panel" data-variant-panel="2" hidden aria-label="變體 2：掃碼報修精靈">
+  <div class="v2-wrap">
+    <header class="v2-head">
+      <span class="v2-logo" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+      <div>
+        <h1>CampusFix 報修精靈</h1>
+        <div class="v2-sub">掃碼即報修・四步完成・合成資料</div>
+      </div>
+    </header>
+    <div class="v2-dots" aria-hidden="true">
+      <div class="v2-dot" data-step="1"><span class="bar"><i></i></span><span class="lbl">掃描設備</span></div>
+      <div class="v2-dot" data-step="2"><span class="bar"><i></i></span><span class="lbl">拍照上傳</span></div>
+      <div class="v2-dot" data-step="3"><span class="bar"><i></i></span><span class="lbl">確認資料</span></div>
+      <div class="v2-dot" data-step="4"><span class="bar"><i></i></span><span class="lbl">完成</span></div>
+    </div>
+    <div class="v2-card">
+      <div class="v2-stepview" data-step="1" hidden>
+        <h2>掃描設備 QR 碼</h2>
+        <p class="hint">把手機鏡頭對準設備上的 QR 碼，地點與設備資訊會自動帶入，不用手動輸入。</p>
+        <div class="v2-qr" role="img" aria-label="QR 碼掃描示意">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <rect width="120" height="120" fill="#FFFFFF"/>
+            <g fill="#241C11">
+              <path d="M12 12h30v30H12zM18 18v18h18V18z" fill-rule="evenodd"/>
+              <rect x="25" y="25" width="5" height="5"/>
+              <path d="M78 12h30v30H78zM84 18v18h18V18z" fill-rule="evenodd"/>
+              <rect x="91" y="25" width="5" height="5"/>
+              <path d="M12 78h30v30H12zM18 84v18h18V84z" fill-rule="evenodd"/>
+              <rect x="25" y="91" width="5" height="5"/>
+              <rect x="50" y="14" width="6" height="6"/><rect x="62" y="14" width="6" height="6"/><rect x="50" y="26" width="6" height="6"/>
+              <rect x="56" y="38" width="6" height="6"/><rect x="68" y="38" width="6" height="6"/><rect x="50" y="50" width="6" height="6"/>
+              <rect x="74" y="50" width="6" height="6"/><rect x="86" y="56" width="6" height="6"/><rect x="56" y="62" width="6" height="6"/>
+              <rect x="68" y="68" width="6" height="6"/><rect x="92" y="62" width="6" height="6"/><rect x="50" y="74" width="6" height="6"/>
+              <rect x="56" y="86" width="6" height="6"/><rect x="74" y="86" width="6" height="6"/><rect x="62" y="98" width="6" height="6"/>
+              <rect x="80" y="92" width="6" height="6"/><rect x="92" y="98" width="6" height="6"/>
+            </g>
+          </svg>
+          <span class="scanline" aria-hidden="true"></span>
+        </div>
+        <button type="button" class="v2-next v2-simulate"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><line x1="13.5" y1="13.5" x2="17" y2="17"/><line x1="20.5" y1="16.5" x2="20.5" y2="20.5"/><line x1="13.5" y1="20.5" x2="17.5" y2="20.5"/></svg><span>模擬掃描完成</span></button>
+        <div class="v2-scanresult" style="margin-top:var(--sp-4)">
+          <span class="r"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11.5-8 11.5S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>教學大樓 A302</span>
+          <span class="r"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>投影機 PJ-A302-01</span>
+          <span class="cap">示例掃描結果（合成資料）</span>
+        </div>
+      </div>
+      <div class="v2-stepview" data-step="2" hidden>
+        <h2>拍下故障照片</h2>
+        <p class="hint">一至三張設備與故障的照片，能讓技師到現場前就有初步判斷。</p>
+        <div class="v2-photos">
+          <div class="v2-photo v2-photo-up" role="img" aria-label="已上傳照片（示意）">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 18.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2h3.2L8.4 4h7.2l1.2 2.5H20a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/></svg>
+            <span class="fname">IMG_1031（示意）</span>
+          </div>
+          <button type="button" class="v2-photo v2-photo-add"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5.5" x2="12" y2="18.5"/><line x1="5.5" y1="12" x2="18.5" y2="12"/></svg>加入照片</button>
+        </div>
+        <label class="v2-field">
+          <span class="v2-flabel">用一句話描述故障</span>
+          <input class="v2-input" type="text" value="開機後無畫面，電源燈是亮的">
+        </label>
+      </div>
+      <div class="v2-stepview" data-step="3" hidden>
+        <h2>確認報修資訊</h2>
+        <p class="hint">以下資訊由 QR 碼自動帶入，確認無誤後提交。</p>
+        <div class="v2-rows">
+          <div class="v2-row"><span>地點</span><b>教學大樓 A302 教室</b></div>
+          <div class="v2-row"><span>設備</span><b>投影機 PJ-A302-01</b></div>
+          <div class="v2-row"><span>分類</span><b class="v2-cat">顯示設備／投影機（自動判定）</b></div>
+          <div class="v2-row v2-row-ta"><span>備註</span><textarea class="v2-ta" rows="2">開機後無畫面，電源燈是亮的（由上一步帶入）</textarea></div>
+        </div>
+      </div>
+      <div class="v2-stepview" data-step="4" hidden>
+        <div class="v2-ok">
+          <span class="v2-okmark" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6.5 9.5 17 4 11.5"/></svg></span>
+          <h2>已送出報修</h2>
+          <p class="hint">工單 <b class="v2-tid">RF-1102-013</b> 已建立，自動派工至 IT 組。</p>
+          <div class="v2-okrows v2-rows">
+            <div class="v2-row"><span>預計回應</span><b>24 小時內</b></div>
+            <div class="v2-row"><span>進度通知</span><b>每個節點完成即通知你</b></div>
+          </div>
+          <button type="button" class="v2-ghost" data-goto="3"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="20.5" y1="20.5" x2="16" y2="16"/></svg>這台投影機 3 月換過燈泡 — 查看案例索引</button>
+        </div>
+      </div>
+    </div>
+    <div class="v2-nav">
+      <button type="button" class="v2-prev" hidden>上一步</button>
+      <button type="button" class="v2-next"><span class="v2-next-t">下一步：確認資料</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="4.5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></button>
+    </div>
+    <p class="v2-foot">本頁所有設備編號、照片與文案皆為合成示意資料</p>
+  </div>
+</section>
+<section class="v3 variant-panel" data-variant-panel="3" hidden aria-label="變體 3：案例知識庫">
+  <header class="v3-head">
+    <div>
+      <h1>CampusFix 維修案例索引</h1>
+      <p class="v3-sub">報修之前，先查以前怎麼修 — 找到相似案例、預估處理時間，避免重複報修。</p>
+    </div>
+    <div class="v3-stat"><b>3</b>筆在冊案例・2026 學年（合成資料）</div>
+  </header>
+  <div class="v3-searchrow">
+    <label class="v3-search">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="20.5" y1="20.5" x2="16" y2="16"/></svg>
+      <input class="v3-input" type="search" placeholder="搜尋案例：例如 投影機、燈泡、冷氣…" aria-label="搜尋維修案例">
+    </label>
+    <div class="v3-chips" role="group" aria-label="依設備類型篩選">
+      <button type="button" class="v3-chip active" data-cat="all">全部</button>
+      <button type="button" class="v3-chip" data-cat="projector">投影機</button>
+      <button type="button" class="v3-chip" data-cat="ac">冷氣</button>
+      <button type="button" class="v3-chip" data-cat="pc">電腦</button>
+    </div>
+  </div>
+  <div class="v3-cases" aria-label="案例列表">
+    <div class="v3-case" data-case="CF-2026-031" data-cat="projector" data-search="cf-2026-031 投影機 燈泡 更換 畫面變暗 閃爍 pj-a302-01 教學大樓 a302 顯示設備 老化 sl-xp210" tabindex="0">
+      <span class="v3-stamp" aria-hidden="true">已完修</span>
+      <span class="v3-no">CF-2026-031</span>
+      <h2>投影燈泡更換</h2>
+      <div class="v3-tags"><span class="v3-tag">投影機</span><span class="v3-tag">燈泡</span><span class="v3-tag">A302</span></div>
+      <div class="v3-when"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-03-18</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>耗時 40 分鐘</span></div>
+    </div>
+    <div class="v3-case" data-case="CF-2026-055" data-cat="projector" data-search="cf-2026-055 投影機 畫面模糊 聚焦失準 a205 鏡頭 天花板支架 顯示設備 清潔 對焦" tabindex="0">
+      <span class="v3-stamp" aria-hidden="true">已完修</span>
+      <span class="v3-no">CF-2026-055</span>
+      <h2>投影畫面模糊、聚焦失準</h2>
+      <div class="v3-tags"><span class="v3-tag">投影機</span><span class="v3-tag">聚焦</span><span class="v3-tag">A205</span></div>
+      <div class="v3-when"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-05-06</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>耗時 25 分鐘</span></div>
+    </div>
+    <div class="v3-case" data-case="CF-2026-087" data-cat="ac" data-search="cf-2026-087 冷氣 不冷 冷媒 r410a 散熱網 外機 行政大樓 3f 會議室 空調 溫度" tabindex="0">
+      <span class="v3-stamp" aria-hidden="true">已完修</span>
+      <span class="v3-no">CF-2026-087</span>
+      <h2>冷氣不冷、出風正常</h2>
+      <div class="v3-tags"><span class="v3-tag">冷氣</span><span class="v3-tag">冷媒</span><span class="v3-tag">行政 3F</span></div>
+      <div class="v3-when"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-08-02</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>耗時 90 分鐘</span></div>
+    </div>
+  </div>
+  <div class="v3-empty" hidden>找不到符合的案例。報修後，新的處理結果會加入這個索引。</div>
+  <div class="v3-sheets">
+    <article class="v3-sheet" data-sheet="CF-2026-031">
+      <span class="v3-sheet-no">CF-2026-031</span>
+      <h3>投影燈泡更換</h3>
+      <div class="v3-d-meta">
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>投影機 PJ-A302-01</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11.5-8 11.5S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>教學大樓 A302 教室</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-03-18</span>
+        <span class="v3-chip-done">已完修</span>
+      </div>
+      <div class="v3-d-sec">
+        <h4>故障現象</h4>
+        <p>投影畫面逐漸變暗、間歇閃爍，手動對焦正常。燈泡累計點亮約 1,240 小時，超過更換標準。</p>
+      </div>
+      <div class="v3-d-sec">
+        <h4>維修步驟</h4>
+        <ol class="v3-steps">
+          <li>斷電並拆卸後蓋</li>
+          <li>更換同型號燈泡（SL-XP210，示例型號）</li>
+          <li>清潔散熱網、檢查風扇運轉</li>
+          <li>開機連續測試 30 分鐘，畫面亮度與色溫正常</li>
+        </ol>
+      </div>
+      <div class="v3-d-sec">
+        <h4>用件與耗時</h4>
+        <div class="v3-rows">
+          <div><span>使用零件</span><b>燈泡 SL-XP210 × 1</b></div>
+          <div><span>維修耗時</span><b>40 分鐘</b></div>
+          <div><span>後續建議</span><b>每 6 個月檢查燈泡小時數</b></div>
+        </div>
+      </div>
+      <div class="v3-xlink"><button type="button" data-goto="1">這台設備 10-31 再次報修「開機無畫面」（RF-1031-012）<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="4.5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></button></div>
+    </article>
+    <article class="v3-sheet" data-sheet="CF-2026-055" hidden>
+      <span class="v3-sheet-no">CF-2026-055</span>
+      <h3>投影畫面模糊、聚焦失準</h3>
+      <div class="v3-d-meta">
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5"/><circle cx="15.5" cy="12.75" r="2.4"/><line x1="6.5" y1="21" x2="9" y2="17.5"/><line x1="17.5" y1="21" x2="15" y2="17.5"/></svg>投影機 PJ-A205-02</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11.5-8 11.5S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>教學大樓 A205 教室</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-05-06</span>
+        <span class="v3-chip-done">已完修</span>
+      </div>
+      <div class="v3-d-sec">
+        <h4>故障現象</h4>
+        <p>畫面整體模糊、邊角明顯失焦，換不同電腦輸入都一樣，初步排除訊號問題。</p>
+      </div>
+      <div class="v3-d-sec">
+        <h4>維修步驟</h4>
+        <ol class="v3-steps">
+          <li>檢查鏡頭是否有灰塵或刮痕</li>
+          <li>以專業鏡頭布清潔鏡頭與濾光片</li>
+          <li>重設對焦參數並手動校正</li>
+          <li>檢查天花板支架螺絲鬆脫，重新固定</li>
+          <li>連續 15 分鐘測試，畫面邊緣清晰度穩定</li>
+        </ol>
+      </div>
+      <div class="v3-d-sec">
+        <h4>用件與耗時</h4>
+        <div class="v3-rows">
+          <div><span>使用零件</span><b>無（清潔＋校正）</b></div>
+          <div><span>維修耗時</span><b>25 分鐘</b></div>
+          <div><span>後續建議</span><b>每學期開學前檢查支架與鏡頭</b></div>
+        </div>
+      </div>
+    </article>
+    <article class="v3-sheet" data-sheet="CF-2026-087" hidden>
+      <span class="v3-sheet-no">CF-2026-087</span>
+      <h3>冷氣不冷、出風正常</h3>
+      <div class="v3-d-meta">
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="11" rx="2.5"/><line x1="6.5" y1="9" x2="12" y2="9"/><line x1="6.5" y1="12" x2="14" y2="12"/><g transform="translate(17.5 10.5)"><line x1="-2.8" y1="0" x2="2.8" y2="0"/><line x1="-1.4" y1="-2.4" x2="1.4" y2="2.4"/><line x1="-1.4" y1="2.4" x2="1.4" y2="-2.4"/></g></svg>窗型冷氣 AC-3F-02</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11.5-8 11.5S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>行政大樓 3F 會議室</span>
+        <span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15 13.8"/></svg>2026-08-02</span>
+        <span class="v3-chip-done">已完修</span>
+      </div>
+      <div class="v3-d-sec">
+        <h4>故障現象</h4>
+        <p>出風量正常但室溫停滯在 28℃，外機有異音，疑似冷媒不足。</p>
+      </div>
+      <div class="v3-d-sec">
+        <h4>維修步驟</h4>
+        <ol class="v3-steps">
+          <li>量測出風溫度與室溫差，確認製冷效率下降</li>
+          <li>檢查冷媒壓力，確認冷媒不足</li>
+          <li>補充冷媒 R410A 並檢查接頭密封</li>
+          <li>清洗外機散熱網</li>
+          <li>30 分鐘後回測，溫度差恢復正常</li>
+        </ol>
+      </div>
+      <div class="v3-d-sec">
+        <h4>用件與耗時</h4>
+        <div class="v3-rows">
+          <div><span>使用零件</span><b>冷媒 R410A × 0.5 kg</b></div>
+          <div><span>維修耗時</span><b>90 分鐘</b></div>
+          <div><span>後續建議</span><b>每年盛夏前清洗散熱網一次</b></div>
+        </div>
+      </div>
+    </article>
+  </div>
+  <footer class="v3-foot">本頁所有案例編號、設備編號與日期皆為合成示例資料，僅供介面評審</footer>
+</section>
+</main>
+
+<div class="switcher" role="toolbar" aria-label="變體切換">
+  <button type="button" data-variant-prev aria-label="上一個變體"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="14.5 18 9 12 14.5 6"/></svg></button>
+  <span data-variant-label>1 (工單工作台)</span>
+  <button type="button" data-variant-next aria-label="下一個變體"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9.5 18 15 12 9.5 6"/></svg></button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var keys = ['1', '2', '3'];
+  var names = { '1': '工單工作台', '2': '掃碼報修精靈', '3': '案例知識庫' };
+  var panels = Array.prototype.slice.call(document.querySelectorAll('[data-variant-panel]'));
+  var label = document.querySelector('[data-variant-label]');
+  var current = '1';
+
+  function apply(k, rewrite) {
+    current = keys.indexOf(k) === -1 ? '1' : k;
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-variant-panel') !== current; });
+    label.textContent = current + ' (' + names[current] + ')';
+    if (rewrite) {
+      try {
+        var url = new URL(window.location.href);
+        url.searchParams.set('variant', current);
+        window.history.replaceState(null, '', url.pathname + url.search);
+      } catch (e) { /* file:// 下 replaceState 可能被限制，忽略 */ }
+    }
+  }
+  function step(delta) {
+    var i = keys.indexOf(current);
+    apply(keys[(i + delta + keys.length) % keys.length], true);
+  }
+  document.querySelector('[data-variant-prev]').addEventListener('click', function () { step(-1); });
+  document.querySelector('[data-variant-next]').addEventListener('click', function () { step(1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+    step(e.key === 'ArrowLeft' ? -1 : 1);
+  });
+  var param = new URLSearchParams(window.location.search).get('variant');
+  apply(keys.indexOf(param) !== -1 ? param : '1', false);
+
+  document.querySelectorAll('[data-goto]').forEach(function (b) {
+    b.addEventListener('click', function () { apply(b.getAttribute('data-goto'), true); });
+  });
+
+  var qItems = Array.prototype.slice.call(document.querySelectorAll('.v1-queue li[data-ticket]'));
+  var dPanels = Array.prototype.slice.call(document.querySelectorAll('.v1-d[data-ticket]'));
+  function selectTicket(id) {
+    qItems.forEach(function (li) { li.classList.toggle('active', li.getAttribute('data-ticket') === id); });
+    dPanels.forEach(function (d) { d.hidden = d.getAttribute('data-ticket') !== id; });
+  }
+  qItems.forEach(function (li) {
+    li.addEventListener('click', function () { selectTicket(li.getAttribute('data-ticket')); });
+    li.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTicket(li.getAttribute('data-ticket')); }
+    });
+  });
+  document.querySelectorAll('[data-jump]').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.stopPropagation(); selectTicket(b.getAttribute('data-jump')); });
+  });
+
+  var stepNo = 2;
+  var views = Array.prototype.slice.call(document.querySelectorAll('.v2-stepview'));
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.v2-dot'));
+  var prevBtn = document.querySelector('.v2-prev');
+  var nextBtn = document.querySelector('.v2-nav .v2-next');
+  var nextLabels = { 1: '下一步：拍照上傳', 2: '下一步：確認資料', 3: '送出報修' };
+  function showStep(n) {
+    stepNo = Math.max(1, Math.min(4, n));
+    views.forEach(function (v) { v.hidden = parseInt(v.getAttribute('data-step'), 10) !== stepNo; });
+    dots.forEach(function (d) {
+      var i = parseInt(d.getAttribute('data-step'), 10);
+      d.classList.toggle('done', i < stepNo);
+      d.classList.toggle('active', i === stepNo);
+    });
+    prevBtn.hidden = stepNo === 1;
+    if (stepNo === 4) {
+      nextBtn.hidden = true;
+      prevBtn.textContent = '再報修一件';
+      prevBtn.setAttribute('data-reset', '1');
+    } else {
+      nextBtn.hidden = false;
+      prevBtn.textContent = '上一步';
+      prevBtn.removeAttribute('data-reset');
+      nextBtn.querySelector('.v2-next-t').textContent = nextLabels[stepNo];
+    }
+  }
+  nextBtn.addEventListener('click', function () { showStep(stepNo + 1); });
+  prevBtn.addEventListener('click', function () {
+    showStep(prevBtn.getAttribute('data-reset') === '1' ? 1 : stepNo - 1);
+  });
+  document.querySelectorAll('.v2-simulate').forEach(function (b) {
+    b.addEventListener('click', function () { showStep(2); });
+  });
+  showStep(2);
+
+  var input = document.querySelector('.v3-input');
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.v3-chip'));
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.v3-case'));
+  var sheets = Array.prototype.slice.call(document.querySelectorAll('.v3-sheet'));
+  var activeChip = 'all';
+  function applyFilter() {
+    var q = (input.value || '').trim().toLowerCase();
+    cards.forEach(function (c) {
+      var okCat = activeChip === 'all' || c.getAttribute('data-cat') === activeChip;
+      var okQ = !q || c.getAttribute('data-search').toLowerCase().indexOf(q) !== -1;
+      c.hidden = !(okCat && okQ);
+    });
+    document.querySelector('.v3-empty').hidden = cards.some(function (c) { return !c.hidden; });
+  }
+  function selectCase(id) {
+    cards.forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-case') === id); });
+    sheets.forEach(function (s) { s.hidden = s.getAttribute('data-sheet') !== id; });
+  }
+  input.addEventListener('input', applyFilter);
+  chips.forEach(function (ch) {
+    ch.addEventListener('click', function () {
+      chips.forEach(function (x) { x.classList.toggle('active', x === ch); });
+      activeChip = ch.getAttribute('data-cat');
+      applyFilter();
+    });
+  });
+  cards.forEach(function (c) {
+    c.addEventListener('click', function () { selectCase(c.getAttribute('data-case')); });
+    c.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCase(c.getAttribute('data-case')); }
+    });
+  });
+  selectCase('CF-2026-031');
+})();
+</script>
+</body>
+</html>

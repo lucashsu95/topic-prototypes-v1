@@ -1,0 +1,757 @@
+<!-- 設計問題：AskCampus（校園規章知識圖譜＋可驗證 AI 問答）的介面應該長什麼樣子？→ 以 ?variant=1..3 切換三個結構迥異的變體：1 對話式問答（答案優先＋來源側欄）、2 條文文庫（文件優先＋行內回答與版本標註）、3 知識圖譜畫布（關係優先＋問答浮層）。 -->
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AskCampus — UI 原型（3 變體）</title>
+<style>
+/* ===== 基礎 token（三個變體共享的骨架；各變體世界以作用域變數覆寫） =====
+   間距：4 / 8 / 12 / 16 / 24 / 32 / 48
+   字級：11 / 12.5 / 14 / 15 / 16 / 20 / 26
+   圓角：8 / 12 / 16 / 999
+   陰影：兩層（1 卡片、2 浮層） */
+:root{
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --fs-xs:11px; --fs-sm:12.5px; --fs-md:14px; --fs-lg:15px; --fs-xl:16px; --fs-2xl:20px; --fs-3xl:26px;
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+  --sh-1:0 1px 2px rgb(15 23 42 / .06), 0 2px 8px rgb(15 23 42 / .07);
+  --sh-2:0 6px 24px rgb(15 23 42 / .14);
+  --sans:system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --serif:"New York", "Songti TC", ui-serif, "Noto Serif TC", "PMingLiU", Georgia, serif;
+}
+*, *::before, *::after{ box-sizing:border-box; }
+html, body{ margin:0; padding:0; }
+body{ font-family:var(--sans); font-size:var(--fs-md); line-height:1.6; -webkit-font-smoothing:antialiased; }
+button{ font-family:inherit; cursor:pointer; }
+input{ font-family:inherit; }
+:focus-visible{ outline:2px solid currentColor; outline-offset:2px; border-radius:var(--r-sm); }
+
+/* ===== 原型chrome：警示橫幅＋底部變體切換（刻意與三種世界不同） ===== */
+.pt-banner{
+  height:30px; display:flex; align-items:center; justify-content:center; gap:var(--sp-2);
+  font-size:clamp(8.5px, 2.35vw, 12px); font-weight:700; letter-spacing:.03em; color:#ffd66b; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; padding:0 var(--sp-3);
+  background:repeating-linear-gradient(45deg, #14161a 0 12px, #20232b 12px 24px);
+  border-bottom:1px solid #000; position:relative; z-index:60;
+}
+.switcher{
+  position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:100;
+  display:flex; align-items:center; gap:var(--sp-1);
+  background:#111418; color:#fff; border:1px solid rgb(255 255 255 / .28);
+  border-radius:var(--r-pill); padding:5px var(--sp-1) 5px var(--sp-2);
+  box-shadow:0 8px 24px rgb(0 0 0 / .38), 0 2px 6px rgb(0 0 0 / .3);
+}
+.sw-btn{
+  width:30px; height:30px; display:grid; place-items:center;
+  background:transparent; color:#fff; border:0; border-radius:var(--r-pill); padding:0;
+}
+.sw-btn:hover{ background:rgb(255 255 255 / .14); }
+.sw-label{ font-size:var(--fs-sm); font-weight:600; min-width:170px; text-align:center; letter-spacing:.01em; }
+
+/* ============================================================
+   變體 1 — 對話式問答：學生事務門戶（浅、答案優先、主操作＝提問）
+   世界：紙白＋墨藍＋一記藍；語氣＝學務處線上服務
+   ============================================================ */
+.v1{
+  --bg:#f2f5fa; --panel:#ffffff; --ink:#182338; --muted:#5a6b85; --line:#dde4ee;
+  --accent:#2f5fe0; --accent-soft:#e8efff; --ok:#1a7f4b; --ok-soft:#e3f4ea;
+  --warn:#8a5b00; --warn-soft:#fdf1d8; --bad:#b3341e; --bad-soft:#fdeae5;
+  --sh-1:0 1px 2px rgb(24 35 56 / .06), 0 2px 8px rgb(24 35 56 / .07);
+  background:var(--bg); color:var(--ink);
+  height:calc(100dvh - 30px); display:flex; flex-direction:column;
+}
+.v1 ::selection{ background:rgb(47 95 224 / .22); }
+.v1-top{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2) var(--sp-3); flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-5); background:var(--panel); border-bottom:1px solid var(--line);
+}
+.v1-brand{ display:flex; align-items:center; gap:var(--sp-2); font-weight:700; font-size:var(--fs-xl); }
+.v1-mark{ width:28px; height:28px; border-radius:var(--r-sm); background:var(--accent); color:#fff; display:grid; place-items:center; flex:none; }
+.v1-sub{ color:var(--muted); font-weight:500; font-size:var(--fs-sm); }
+.v1-chips{ display:flex; gap:var(--sp-2); }
+.chip{
+  font-size:var(--fs-xs); font-weight:600; padding:3px 10px; border-radius:var(--r-pill);
+  background:var(--bg); color:var(--muted); border:1px solid var(--line); white-space:nowrap;
+}
+.v1-body{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:var(--sp-4); padding:var(--sp-4) var(--sp-5) 0; }
+.v1-chat{ min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:var(--sp-3); padding:var(--sp-1) var(--sp-1) var(--sp-7); scrollbar-width:thin; }
+.v1-chat::-webkit-scrollbar{ width:8px; } .v1-chat::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+.v1-date{ align-self:center; font-size:var(--fs-xs); color:var(--muted); background:var(--panel); border:1px solid var(--line); padding:2px 12px; border-radius:var(--r-pill); }
+.v1-row{ display:flex; animation:rise .38s cubic-bezier(.16,1,.3,1) backwards; }
+.v1-row:nth-child(2){ animation-delay:.03s; } .v1-row:nth-child(3){ animation-delay:.08s; }
+.v1-row:nth-child(4){ animation-delay:.14s; } .v1-row:nth-child(5){ animation-delay:.20s; }
+@keyframes rise{ from{ opacity:0; transform:translateY(10px); } }
+.v1-row.user{ justify-content:flex-end; }
+.bubble{
+  max-width:72%; background:var(--accent); color:#fff; padding:var(--sp-2) var(--sp-4);
+  border-radius:var(--r-md) var(--r-md) var(--r-sm) var(--r-md); font-size:var(--fs-lg);
+}
+.v1-row.ai{ gap:var(--sp-3); }
+.v1-avatar{ width:30px; height:30px; flex:none; border-radius:var(--r-sm); background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; margin-top:var(--sp-1); }
+.v1-card{
+  flex:1; min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md);
+  box-shadow:var(--sh-1); padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-2);
+}
+.v1-cardhead{ display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
+.conf{
+  display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs); font-weight:700;
+  padding:3px 10px; border-radius:var(--r-pill);
+}
+.conf-high{ background:var(--ok-soft); color:var(--ok); }
+.conf-mid{ background:var(--warn-soft); color:var(--warn); }
+.srcnote{ font-size:var(--fs-xs); color:var(--muted); }
+.v1-answer{ margin:0; font-size:var(--fs-lg); }
+.v1-answer strong{ font-size:var(--fs-2xl); letter-spacing:.01em; }
+.v1-cites{ display:flex; flex-wrap:wrap; gap:var(--sp-2); }
+.cite{
+  display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-sm); font-weight:600;
+  padding:5px 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--bg);
+}
+.cite .badge{ font-size:10.5px; font-weight:700; padding:1.5px 7px; border-radius:var(--r-pill); }
+.badge-cur{ background:var(--ok-soft); color:var(--ok); }
+.badge-old{ background:var(--bad-soft); color:var(--bad); }
+.v1-diff{
+  display:flex; align-items:baseline; gap:var(--sp-2); flex-wrap:wrap;
+  background:var(--accent-soft); border:1px solid rgb(47 95 224 / .25); color:#22345e;
+  border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-sm);
+}
+.v1-diff .dh{ font-weight:700; display:inline-flex; align-items:center; gap:6px; color:var(--accent); }
+.v1-diff s{ color:#7d89a3; }
+.v1-diff .delta{ font-weight:700; color:var(--accent); }
+.v1-stale{
+  display:flex; gap:var(--sp-2); background:var(--bad-soft); border:1px solid rgb(179 52 30 / .28);
+  color:#7c2413; border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-sm);
+}
+.v1-stale svg{ flex:none; margin-top:2px; }
+.v1-uncertain{
+  display:flex; gap:var(--sp-2); background:var(--warn-soft); border:1px solid rgb(138 91 0 / .3);
+  color:#6b4a05; border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-sm);
+}
+.v1-uncertain svg{ flex:none; margin-top:2px; }
+.v1-follow{ display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; padding-left:2px; }
+.v1-follow .lbl{ font-size:var(--fs-xs); color:var(--muted); }
+.chip-q{
+  font-size:var(--fs-sm); padding:5px 12px; border-radius:var(--r-pill);
+  background:var(--panel); border:1px solid var(--line); color:var(--ink);
+}
+/* 來源側欄 */
+.v1-sources{ min-width:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:var(--sp-3); padding:var(--sp-1) var(--sp-1) var(--sp-7); scrollbar-width:thin; }
+.v1-sources h2{ margin:0; font-size:var(--fs-sm); font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; }
+.src-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); box-shadow:var(--sh-1); padding:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2); }
+.src-card.src-stale{ border-style:dashed; }
+.src-top{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); }
+.src-title{ font-weight:700; font-size:var(--fs-lg); }
+.src-dl{ margin:0; display:grid; grid-template-columns:auto 1fr; gap:2px var(--sp-2); font-size:var(--fs-sm); }
+.src-dl dt{ color:var(--muted); } .src-dl dd{ margin:0; font-weight:600; }
+.src-quote{ margin:0; font-size:var(--fs-sm); color:var(--muted); border-top:1px dashed var(--line); padding-top:var(--sp-2); }
+.src-quote em{ font-style:normal; background:var(--accent-soft); color:var(--accent); font-weight:700; padding:0 4px; border-radius:4px; }
+.src-legend{ font-size:var(--fs-xs); color:var(--muted); display:flex; flex-direction:column; gap:var(--sp-1); }
+.src-legend span{ display:flex; align-items:center; gap:6px; }
+.dot{ width:8px; height:8px; border-radius:50%; display:inline-block; flex:none; }
+.dot-cur{ background:var(--ok); } .dot-old{ background:var(--bad); }
+/* 輸入列 */
+.v1-inputbar{
+  margin:0 var(--sp-5); padding-bottom:64px;
+}
+.v1-inputrow{ display:flex; gap:var(--sp-2); background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); box-shadow:var(--sh-1); padding:var(--sp-2); }
+.v1-inputrow:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px rgb(47 95 224 / .14); }
+.v1-inputrow input{ flex:1; min-width:0; border:0; outline:none; font-size:var(--fs-lg); background:transparent; padding:var(--sp-1) var(--sp-2); color:var(--ink); }
+.v1-inputrow input::placeholder{ color:#93a1ba; }
+.v1-send{
+  display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff; border:0;
+  font-size:var(--fs-md); font-weight:700; padding:var(--sp-2) var(--sp-4); border-radius:var(--r-sm);
+}
+.v1-send:hover{ background:#2551c4; }
+.v1-foot{ margin:var(--sp-2) 0 0; font-size:var(--fs-xs); color:var(--muted); text-align:center; }
+
+/* ============================================================
+   變體 2 — 條文文庫：公文語感（暖紙、文件優先、主操作＝瀏覽條文）
+   世界：暖紙底＋墨色襯線公文＋鈐章紅；AI 回答以深青錨定於條文
+   ============================================================ */
+.v2{
+  --paper:#f4efe3; --sheet:#fbf8f0; --ink:#2b2419; --muted:#7d715c; --line:#ddd2bc;
+  --seal:#b3341e; --seal-soft:#f6e3de; --ai:#0f6b5c; --ai-soft:#e0efeb;
+  --ok:#1a7f4b; --ok-soft:#e3f4ea; --bad:#b3341e; --bad-soft:#f6e3de; --warn:#8a5b00; --warn-soft:#f7eed7;
+  --sh-1:0 1px 2px rgb(43 36 25 / .07), 0 2px 10px rgb(43 36 25 / .08);
+  background:var(--paper); color:var(--ink); min-height:calc(100dvh - 30px);
+  padding-bottom:70px; animation:rise .38s cubic-bezier(.16,1,.3,1) backwards;
+}
+.v2 ::selection{ background:rgb(179 52 30 / .18); }
+.v2-top{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-5); border-bottom:2px solid var(--ink); background:var(--paper);
+}
+.v2-brand{ display:flex; align-items:center; gap:var(--sp-2); font-weight:700; font-size:var(--fs-xl); font-family:var(--serif); }
+.v2-seal{
+  width:30px; height:30px; flex:none; border:2px solid var(--seal); color:var(--seal);
+  display:grid; place-items:center; font-family:var(--serif); font-size:var(--fs-lg); font-weight:700;
+  border-radius:4px; transform:rotate(-4deg);
+}
+.v2-sub{ color:var(--muted); font-size:var(--fs-sm); font-weight:500; }
+.v2-qstrip{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  background:var(--ai-soft); border:1px solid rgb(15 107 92 / .3); color:#12463c;
+  border-radius:var(--r-sm); padding:6px var(--sp-3); font-size:var(--fs-sm);
+}
+.v2-qstrip strong{ font-family:var(--serif); font-size:var(--fs-md); }
+.v2-qstrip .loc{ color:var(--ai); font-weight:700; }
+.v2-cols{ display:grid; grid-template-columns:230px minmax(0,760px) 270px; gap:var(--sp-4); padding:var(--sp-4) var(--sp-5); justify-content:center; }
+/* 文件樹 */
+.v2-tree{ display:flex; flex-direction:column; gap:var(--sp-2); align-self:start; position:sticky; top:var(--sp-4); }
+.v2-tree h2{ margin:0; font-size:var(--fs-xs); font-weight:700; letter-spacing:.06em; color:var(--muted); }
+.doc-item{
+  text-align:left; display:flex; flex-direction:column; gap:2px;
+  background:var(--sheet); border:1px solid var(--line); border-radius:var(--r-sm);
+  padding:var(--sp-2) var(--sp-3); color:var(--ink); box-shadow:var(--sh-1);
+}
+.doc-item:hover{ border-color:var(--ink); }
+.doc-item.doc-active{ border:2px solid var(--ink); background:#fff; }
+.doc-title{ font-size:var(--fs-sm); font-weight:700; }
+.doc-meta{ font-size:var(--fs-xs); color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+/* 文件頁 */
+.v2-sheet{
+  background:var(--sheet); border:1px solid var(--line); border-top:3px solid var(--ink);
+  border-radius:0 0 var(--r-sm) var(--r-sm); box-shadow:var(--sh-1);
+  padding:var(--sp-5) var(--sp-6) var(--sp-6); font-family:var(--serif);
+}
+.v2-docmeta{ font-size:var(--fs-sm); color:var(--muted); letter-spacing:.08em; }
+.v2-doctitle{ margin:2px 0 var(--sp-2); font-size:var(--fs-3xl); font-weight:700; letter-spacing:.06em; }
+.v2-docver{ display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; font-size:var(--fs-sm); color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:var(--sp-3); margin-bottom:var(--sp-4); }
+.v2-docver .badge-cur{ font-size:var(--fs-xs); font-weight:700; padding:2px 10px; border-radius:var(--r-pill); background:var(--seal); color:#fff; }
+.v2-art{ padding:var(--sp-3) 0; border-bottom:1px dashed var(--line); }
+.v2-art:last-child{ border-bottom:0; }
+.v2-artno{ font-weight:700; font-size:var(--fs-xl); display:flex; align-items:baseline; gap:var(--sp-2); }
+.v2-arttitle{ color:var(--muted); font-size:var(--fs-md); font-weight:500; }
+.v2-art p{ margin:var(--sp-1) 0 0; font-size:var(--fs-lg); line-height:1.9; }
+.art-hot{
+  background:#fff; border:2px solid var(--ai); border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-4); margin:var(--sp-2) 0;
+  animation:hotpulse 1.4s ease-out .3s backwards;
+}
+@keyframes hotpulse{
+  0%{ box-shadow:0 0 0 0 rgb(15 107 92 / .45); }
+  100%{ box-shadow:0 0 0 14px rgb(15 107 92 / 0); }
+}
+.art-hot .v2-artno{ color:var(--ai); }
+.v2-oldtext{ color:var(--muted); }
+.art-hot mark{
+  background:var(--seal-soft); color:var(--seal); font-weight:700; padding:1px 6px; border-radius:4px;
+}
+.v2-pindiff{
+  margin-top:var(--sp-2); display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--sans); font-size:var(--fs-xs); font-weight:700; color:var(--seal);
+  background:var(--seal-soft); border-radius:var(--r-pill); padding:3px 10px;
+}
+/* AI 錨定回答 */
+.v2-aipin{
+  margin-top:var(--sp-3); background:var(--ai-soft); border:1px solid rgb(15 107 92 / .35);
+  border-radius:var(--r-md); padding:var(--sp-3); font-family:var(--sans);
+}
+.v2-aipin-h{ display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-xs); font-weight:700; color:var(--ai); letter-spacing:.03em; }
+.v2-aipin p{ margin:var(--sp-1) 0 0; font-family:var(--serif); font-size:var(--fs-lg); line-height:1.8; }
+.v2-aipin .qa{ margin-top:var(--sp-2); font-size:var(--fs-xs); color:#3e6b61; }
+/* 右欄 */
+.v2-rail{ display:flex; flex-direction:column; gap:var(--sp-3); align-self:start; position:sticky; top:var(--sp-4); }
+.v2-rail h2{ margin:0; font-size:var(--fs-xs); font-weight:700; letter-spacing:.06em; color:var(--muted); }
+.v2-timeline{ list-style:none; margin:0; padding:0 0 0 var(--sp-4); border-left:2px solid var(--line); display:flex; flex-direction:column; gap:var(--sp-3); }
+.v2-timeline li{ position:relative; font-size:var(--fs-sm); }
+.v2-timeline li::before{
+  content:""; position:absolute; left:calc(-1 * var(--sp-4) - 7px); top:5px;
+  width:10px; height:10px; border-radius:50%; background:var(--line);
+}
+.v2-timeline li.tl-cur::before{ background:var(--seal); box-shadow:0 0 0 3px var(--seal-soft); }
+.tl-ver{ font-weight:700; }
+.tl-date{ color:var(--muted); font-size:var(--fs-xs); }
+.tl-status{ font-size:var(--fs-xs); font-weight:700; }
+.tl-cur .tl-status{ color:var(--ok); } .tl-old .tl-status{ color:var(--bad); }
+.v2-note{
+  display:flex; gap:var(--sp-2); font-size:var(--fs-sm); border:1px solid var(--line);
+  background:var(--sheet); border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3); box-shadow:var(--sh-1);
+}
+.v2-note svg{ flex:none; margin-top:2px; }
+.v2-note.note-stale{ border-color:rgb(179 52 30 / .35); background:var(--bad-soft); color:#7c2413; }
+.v2-note.note-aud{ color:#4a4234; }
+
+/* ============================================================
+   變體 3 — 知識圖譜畫布：深藍圖集（關係優先、主操作＝探索節點）
+   世界：深夜藍底＋點陣座標＋琥珀證據流；節點按類別分色
+   ============================================================ */
+.v3{
+  --bg:#0c1220; --panel:#141c2e; --panel-edge:#26324b; --ink:#e8edf7; --muted:#8b98b3;
+  --q:#f5b942; --doc:#5b8cff; --clause:#35c2c9; --ver:#57c26b; --aud:#a78bfa; --date:#94a3b8; --fact:#f5b942;
+  --ok:#57c26b; --bad:#f07a6a;
+  --sh-2:0 10px 32px rgb(0 0 0 / .5);
+  background:var(--bg); color:var(--ink);
+  height:calc(100dvh - 30px); overflow:hidden; color-scheme:dark;
+}
+.v3 ::selection{ background:rgb(245 185 66 / .3); }
+.v3-stage{ position:relative; height:100%; }
+.v3-stage::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background-image:radial-gradient(rgb(139 152 179 / .16) 1px, transparent 1px);
+  background-size:32px 32px;
+}
+.v3-canvas{ position:absolute; inset:0; width:100%; height:100%; }
+.v3-side{
+  position:absolute; top:var(--sp-4); left:var(--sp-4); bottom:var(--sp-7); width:300px;
+  display:flex; flex-direction:column; gap:var(--sp-3); z-index:5;
+}
+.v3-card{
+  background:var(--panel); border:1px solid var(--panel-edge); border-radius:var(--r-md);
+  box-shadow:var(--sh-2); padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-2);
+  animation:rise .42s cubic-bezier(.16,1,.3,1) backwards;
+}
+.v3-acard{ animation-delay:.1s; }
+.v3-kick{ font-size:var(--fs-xs); font-weight:700; letter-spacing:.14em; color:var(--muted); }
+.v3-q{ margin:0; font-size:var(--fs-2xl); font-weight:700; line-height:1.35; }
+.v3-inputrow{ display:flex; gap:var(--sp-2); }
+.v3-inputrow input{
+  flex:1; min-width:0; background:var(--bg); border:1px solid var(--panel-edge); color:var(--ink);
+  border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3); font-size:var(--fs-md); outline:none;
+}
+.v3-inputrow input::placeholder{ color:#5f6d8c; }
+.v3-inputrow input:focus{ border-color:var(--q); }
+.v3-ask{
+  background:var(--q); color:#221a05; border:0; border-radius:var(--r-sm);
+  font-weight:700; font-size:var(--fs-md); padding:0 var(--sp-4);
+}
+.v3-ask:hover{ background:#ffca60; }
+.v3-qchips{ display:flex; gap:var(--sp-2); }
+.v3-chip{ font-size:var(--fs-xs); font-weight:600; color:var(--muted); border:1px solid var(--panel-edge); border-radius:var(--r-pill); padding:2px 9px; }
+.v3-a-h{ display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-xs); font-weight:700; letter-spacing:.1em; color:var(--muted); }
+.v3-a{ margin:0; font-size:var(--fs-xl); font-weight:600; line-height:1.55; }
+.v3-a .num{ color:var(--q); font-size:var(--fs-3xl); font-weight:800; letter-spacing:.01em; }
+.v3-evidence{
+  font-size:var(--fs-sm); color:var(--muted); border-top:1px dashed var(--panel-edge);
+  padding-top:var(--sp-2); line-height:1.7;
+}
+.v3-evidence b{ color:var(--ink); font-weight:600; }
+.v3-warn{
+  display:flex; gap:var(--sp-2); font-size:var(--fs-sm); color:var(--bad);
+  border:1px solid rgb(240 122 106 / .35); border-radius:var(--r-sm); padding:var(--sp-2) var(--sp-3);
+  background:rgb(240 122 106 / .08);
+}
+.v3-warn svg{ flex:none; margin-top:2px; }
+.v3-legend{
+  position:absolute; top:var(--sp-4); right:var(--sp-4); z-index:5;
+  background:var(--panel); border:1px solid var(--panel-edge); border-radius:var(--r-md);
+  box-shadow:var(--sh-2); padding:var(--sp-3); font-size:var(--fs-xs); color:var(--muted);
+  display:grid; grid-template-columns:1fr 1fr; gap:5px var(--sp-3); max-width:220px;
+}
+.v3-legend .lg-h{ grid-column:1 / -1; font-weight:700; letter-spacing:.1em; font-size:10.5px; }
+.v3-legend span{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.lg-dot{ width:9px; height:9px; border-radius:3px; flex:none; }
+.lg-line{ width:18px; height:0; border-top:2px dashed #55617a; flex:none; }
+/* SVG 節點 */
+.v3-canvas .cat{ font-size:10.5px; letter-spacing:.12em; font-family:var(--sans); }
+.v3-canvas .ttl{ font-size:15px; font-weight:700; font-family:var(--sans); }
+.v3-canvas .ttl-big{ font-size:21px; }
+.v3-canvas .edgelbl{ font-size:11px; font-family:var(--sans); fill:var(--muted); }
+.v3-canvas .node rect{ transition:filter .2s; }
+.v3-canvas .node:hover rect{ filter:brightness(1.35); }
+.v3-canvas .edge{ stroke:#3a4763; stroke-width:1.5; fill:none; }
+.v3-canvas .edge-dash{ stroke:#55617a; stroke-width:1.4; stroke-dasharray:5 5; fill:none; }
+.v3-canvas .ev{ stroke:var(--q); stroke-width:2.2; fill:none; stroke-dasharray:10 7; animation:flow 1.1s linear infinite; }
+@keyframes flow{ to{ stroke-dashoffset:-17; } }
+.v3-canvas .sup text{ fill:#8b98b3; }
+.v3-canvas .strike{ text-decoration:line-through; }
+.v3-canvas .faint{ opacity:.55; }
+/* 手機證據鏈（≤720px 取代畫布） */
+.v3-chain{ display:none; flex-direction:column; gap:0; padding:var(--sp-4) var(--sp-4) 80px; }
+.v3-chain .ch-h{ font-size:var(--fs-xs); font-weight:700; letter-spacing:.14em; color:var(--muted); margin-bottom:var(--sp-3); }
+.ch-item{
+  display:flex; align-items:center; gap:var(--sp-3); background:var(--panel);
+  border:1px solid var(--panel-edge); border-left-width:3px; border-radius:var(--r-sm);
+  padding:var(--sp-2) var(--sp-3);
+}
+.ch-cat{ font-size:10px; letter-spacing:.12em; font-weight:700; flex:none; width:56px; }
+.ch-t{ font-size:var(--fs-md); font-weight:600; }
+.ch-link{ height:22px; width:2px; background:var(--q); margin-left:26px; position:relative; }
+.ch-link::after{ content:""; position:absolute; bottom:-3px; left:-4px; border:5px solid transparent; border-top-color:var(--q); }
+.ch-item.ch-sup{ border-left-color:#55617a; opacity:.75; }
+.ch-item.ch-sup .ch-t{ text-decoration:line-through; color:var(--muted); }
+
+/* ===== 響應式 ===== */
+@media (max-width: 900px){
+  /* 窄螢幕：v1 不再固定 100dvh 高度，改讓頁面自然捲動，
+     避免單欄 grid 中 chat 內容溢覆到下方來源欄 */
+  .v1{ height:auto; min-height:calc(100dvh - 30px); }
+  .v1-body{ grid-template-columns:1fr; }
+  .v1-sources{ order:2; padding-bottom:var(--sp-5); }
+  .v1-chat{ padding-bottom:var(--sp-4); }
+  .v2-cols{ grid-template-columns:1fr; }
+  .v2-tree{ position:static; flex-direction:row; overflow-x:auto; padding-bottom:var(--sp-1); }
+  .v2-tree h2{ display:none; }
+  .doc-item{ flex:none; min-width:190px; }
+  .v2-rail{ position:static; }
+}
+@media (max-width: 720px){
+  .v1-top, .v2-top{ padding:var(--sp-3) var(--sp-4); }
+  .v1-top{ flex-direction:column; align-items:flex-start; }
+  .src-quote{ overflow-wrap:anywhere; }
+  .v1-body, .v2-cols{ padding:var(--sp-3) var(--sp-4); }
+  .v1-inputbar{ margin:0 var(--sp-4); }
+  .v2-sheet{ padding:var(--sp-4); }
+  .v2-doctitle{ font-size:var(--fs-2xl); }
+  /* V3：浮層改堆疊，畫布換成垂直證據鏈 */
+  .v3{ height:auto; min-height:calc(100dvh - 30px); overflow:visible; }
+  .v3-stage{ height:auto; }
+  .v3-stage::before{ display:none; }
+  .v3-canvas{ display:none; }
+  .v3-side{ position:static; width:auto; padding:var(--sp-4) var(--sp-4) 0; }
+  .v3-legend{ position:static; max-width:none; margin:0 var(--sp-4); grid-template-columns:1fr 1fr; }
+  .v3-chain{ display:flex; }
+}
+@media (prefers-reduced-motion: reduce){
+  .v1-row, .v1, .v2, .v3-card{ animation:none !important; }
+  .v3-canvas .ev{ animation:none; }
+  .art-hot{ animation:none; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+"use strict";
+/* ================= 合成示意資料（非真實校規，僅供介面評審） ================= */
+const DATA = {
+  question: "畢業學分要求是多少？",
+  answer: "依《資管系學務規定（2026 修訂版）》第 12 條，資訊管理學系 116 級起畢業需修滿 130 學分：通識 30、專業核心 40、專業選修 30、實習 12、其他 18。",
+  answerParts: { num: "130", detail: "學分（116 級起）：通識 30・專業核心 40・專業選修 30・實習 12・其他 18" },
+  confidence: { level: "高", score: "0.92" },
+  citations: [
+    { doc: "《資管系學務規定》", clause: "第 12 條", version: "2026 修訂版", effective: "生效 2026-08-01", status: "cur", quote: "學生畢業應修滿 <em>130 學分</em>……本條自 116 級起適用。" },
+    { doc: "《學務處公告 113-09》", clause: "全文", version: "2024 版", effective: "2024-06-01 發布", status: "old", quote: "……學分要求 <em>128 學分</em>……（已於 2026-08-01 被取代）" }
+  ],
+  versionDiff: "2024 版 128 學分 → 2026 修訂版 130 學分（＋2，116 級起適用）",
+  staleWarning: "過期資訊警告：學務處 2024/3/15 公告仍寫「128 學分」，該版本已於 2026-08-01 被取代，請勿引用。",
+  followUps: ["獎助學金申請資格？", "轉學生選課規定？"],
+  uncertainQA: {
+    q: "獎助學金申請資格？",
+    a: "學業獎學金：成績前 10% 且無不及格紀錄，依《獎助學金作業要點》第 3 條（2025 版・現行）。",
+    caveat: "此部分無法驗證：勤工獎學金時數門檻 2026 學年度尚未公告，現行條文未載明，建議直接向學務處獎助組確認。",
+    conf: "中（0.64）"
+  },
+  docs: [
+    { t: "資管系學務規定", v: "2026 修訂版", s: "cur", active: true },
+    { t: "資管系學務規定", v: "2024 版", s: "old" },
+    { t: "選課實施細則", v: "2026 版", s: "cur" },
+    { t: "獎助學金作業要點", v: "2025 版", s: "cur", flag: "1 條不確定" }
+  ],
+  timeline: [
+    { v: "2026 修訂版", d: "2026-08-01", s: "cur" },
+    { v: "2024 版", d: "2024-06-01", s: "old" },
+    { v: "2021 初版", d: "2021-08-01", s: "old" }
+  ]
+};
+
+/* ================= 圖示（inline SVG，同權重描邊） ================= */
+const svgAttrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+const I = {
+  doc: s => `<svg ${svgAttrs} width="${s}" height="${s}"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg>`,
+  alert: s => `<svg ${svgAttrs} width="${s}" height="${s}"><path d="M12 4 21 19H3z"/><path d="M12 10v4M12 17h.01"/></svg>`,
+  branch: s => `<svg ${svgAttrs} width="${s}" height="${s}"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="8" r="2.4"/><path d="M6 8.4v7.2"/><path d="M6 15c6.5 0 12 0 12-4.5"/></svg>`,
+  check: s => `<svg ${svgAttrs} width="${s}" height="${s}"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>`,
+  clock: s => `<svg ${svgAttrs} width="${s}" height="${s}"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
+  user: s => `<svg ${svgAttrs} width="${s}" height="${s}"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.5-4 12.5-4 14 0"/></svg>`,
+  send: s => `<svg ${svgAttrs} width="${s}" height="${s}"><path d="M4 12 20 4l-4 16-4.5-6.5z"/><path d="M11.5 13.5 20 4"/></svg>`,
+  bot: s => `<svg ${svgAttrs} width="${s}" height="${s}"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 4v3"/><circle cx="9.5" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13" r="1" fill="currentColor" stroke="none"/></svg>`,
+  target: s => `<svg ${svgAttrs} width="${s}" height="${s}"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor" stroke="none"/></svg>`,
+  chL: s => `<svg ${svgAttrs} width="${s}" height="${s}" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>`,
+  chR: s => `<svg ${svgAttrs} width="${s}" height="${s}" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>`
+};
+
+/* ================= 變體 1：對話式問答（答案優先＋來源側欄） ================= */
+function renderV1(d){
+  const srcCard = c => `
+    <div class="src-card ${c.status === 'old' ? 'src-stale' : ''}">
+      <div class="src-top">
+        <span class="src-title">${c.doc}</span>
+        <span class="badge ${c.status === 'cur' ? 'badge-cur' : 'badge-old'}">${c.status === 'cur' ? '現行' : '已取代'}</span>
+      </div>
+      <dl class="src-dl">
+        <dt>條文</dt><dd>${c.clause}</dd>
+        <dt>版本</dt><dd>${c.version}</dd>
+        <dt>日期</dt><dd>${c.effective}</dd>
+      </dl>
+      <p class="src-quote">${c.quote}</p>
+    </div>`;
+  return `
+  <div class="v1" data-v="1">
+    <header class="v1-top">
+      <div class="v1-brand"><span class="v1-mark">${I.bot(16)}</span>AskCampus<span class="v1-sub">校園規章問答</span></div>
+      <div class="v1-chips"><span class="chip">示意資料（合成）</span><span class="chip">索引截至 2026-08-01</span></div>
+    </header>
+    <div class="v1-body">
+      <section class="v1-chat" aria-label="對話紀錄">
+        <div class="v1-date">今天 10:24</div>
+        <div class="v1-row user"><div class="bubble">${d.question}</div></div>
+        <div class="v1-row ai">
+          <div class="v1-avatar">${I.bot(16)}</div>
+          <div class="v1-card">
+            <div class="v1-cardhead"><span class="conf conf-high">${I.check(13)} 置信度：高（${d.confidence.score}）</span><span class="srcnote">2 個來源・1 現行・1 已取代</span></div>
+            <p class="v1-answer">依《資管系學務規定（2026 修訂版）》第 12 條，116 級起畢業需修滿 <strong>130 學分</strong>：通識 30、專業核心 40、專業選修 30、實習 12、其他 18。</p>
+            <div class="v1-cites">
+              <span class="cite">${I.doc(14)}《資管系學務規定》第 12 條<span class="badge badge-cur">2026 修訂版</span><span class="badge badge-cur">生效 2026-08-01</span></span>
+              <span class="cite">${I.doc(14)}《學務處公告 113-09》<span class="badge badge-old">已取代</span></span>
+            </div>
+            <div class="v1-diff"><span class="dh">${I.branch(14)} 版本差異</span><span><s>2024 版・128 學分</s> → <strong>2026 修訂版・130 學分</strong></span><span class="delta">＋2（116 級起適用）</span></div>
+            <div class="v1-stale">${I.alert(15)}<span>${d.staleWarning}</span></div>
+            <div class="v1-follow"><span class="lbl">換個問題：</span>${d.followUps.map(f => `<span class="chip-q">${f}</span>`).join("")}</div>
+          </div>
+        </div>
+        <div class="v1-row user"><div class="bubble">${d.uncertainQA.q}</div></div>
+        <div class="v1-row ai">
+          <div class="v1-avatar">${I.bot(16)}</div>
+          <div class="v1-card">
+            <div class="v1-cardhead"><span class="conf conf-mid">${I.clock(13)} 置信度：${d.uncertainQA.conf}</span><span class="srcnote">1 個來源・1 部分無法驗證</span></div>
+            <p class="v1-answer">${d.uncertainQA.a}</p>
+            <div class="v1-uncertain">${I.clock(15)}<span>${d.uncertainQA.caveat}</span></div>
+            <div class="v1-cites"><span class="cite">${I.doc(14)}《獎助學金作業要點》第 3 條<span class="badge badge-cur">2025 版・現行</span></span></div>
+          </div>
+        </div>
+      </section>
+      <aside class="v1-sources" aria-label="引用來源">
+        <h2>本輪引用來源</h2>
+        ${d.citations.map(srcCard).join("")}
+        <div class="src-legend">
+          <span><i class="dot dot-cur"></i>現行＝可直接引用</span>
+          <span><i class="dot dot-old"></i>已取代＝僅供版本比較，不可引用</span>
+          <span style="margin-top:6px">所有回答皆附條文、版本與生效日期；不確定時會明確標示。</span>
+        </div>
+      </aside>
+    </div>
+    <div class="v1-inputbar">
+      <div class="v1-inputrow">
+        <input type="text" placeholder="輸入問題，例如：轉學生選課規定" aria-label="輸入問題"/>
+        <button class="v1-send" title="原型：無後端，不實作提問">${I.send(15)} 提問</button>
+      </div>
+      <p class="v1-foot">示意對話，非真實問答紀錄</p>
+    </div>
+  </div>`;
+}
+
+/* ================= 變體 2：條文文庫（文件優先＋行內回答＋版本標註） ================= */
+function renderV2(d){
+  const tree = d.docs.map(x => `
+    <button class="doc-item ${x.active ? 'doc-active' : ''}" ${x.active ? '' : 'title="原型：僅示意（無後端）"'}>
+      <span class="doc-title">${x.t}</span>
+      <span class="doc-meta">${x.v}<i class="dot ${x.s === 'cur' ? 'dot-cur' : 'dot-old'}"></i>${x.s === 'cur' ? '現行' : '已取代'}${x.flag ? `・<em style="color:var(--warn);font-style:normal;font-weight:700">${x.flag}</em>` : ''}</span>
+    </button>`).join("");
+  const tl = d.timeline.map(x => `
+    <li class="${x.s === 'cur' ? 'tl-cur' : 'tl-old'}">
+      <div class="tl-ver">${x.v}</div>
+      <div class="tl-date">${x.d} 生效</div>
+      <div class="tl-status">${x.s === 'cur' ? '● 現行' : '○ 已取代'}</div>
+    </li>`).join("");
+  return `
+  <div class="v2" data-v="2">
+    <header class="v2-top">
+      <div class="v2-brand"><span class="v2-seal">規</span>北商學規文庫<span class="v2-sub">AskCampus・條文檢視</span></div>
+      <div class="v2-qstrip">${I.target(14)} 正在回答：<strong>${d.question}</strong><span class="loc">已定位：《資管系學務規定》第 12 條</span><span class="conf conf-high" style="background:var(--ai-soft);color:var(--ai)">置信度 高（${d.confidence.score}）</span></div>
+    </header>
+    <div class="v2-cols">
+      <nav class="v2-tree" aria-label="文件清單"><h2>文件庫</h2>${tree}</nav>
+      <main class="v2-sheet">
+        <div class="v2-docmeta">國立臺北商業大學・資訊管理學系</div>
+        <h1 class="v2-doctitle">學務規定</h1>
+        <div class="v2-docver"><span class="badge-cur">現行</span>2026 修訂版・生效 2026-08-01・共 24 條（節錄第 10–13 條）</div>
+        <article class="v2-art">
+          <div class="v2-artno">第 10 條<span class="v2-arttitle">總則</span></div>
+          <p>本規定適用於資訊管理學系各級學生，解釋權歸本系。</p>
+        </article>
+        <article class="v2-art">
+          <div class="v2-artno">第 11 條<span class="v2-arttitle">學分總數</span></div>
+          <p>學生應修滿系所規定之學分數，始得畢業。</p>
+        </article>
+        <article class="v2-art art-hot">
+          <div class="v2-artno">第 12 條<span class="v2-arttitle">畢業學分要求</span></div>
+          <p>學生畢業應修滿 <s class="v2-oldtext">128</s> <mark>130</mark> 學分，其中通識 30、專業核心 40、專業選修 30、實習 12、其他 18。本條自 116 級起適用。</p>
+          <span class="v2-pindiff">${I.branch(13)} 較 2024 版：128 → 130（＋2 學分）</span>
+          <aside class="v2-aipin">
+            <div class="v2-aipin-h">${I.bot(14)} AI 回答・依據本條<span class="conf conf-high" style="background:var(--ai-soft);color:var(--ai)">高（${d.confidence.score}）</span></div>
+            <p>116 級起畢業需修滿 130 學分：通識 30、專業核心 40、專業選修 30、實習 12、其他 18。</p>
+            <div class="qa">問題：${d.question}</div>
+          </aside>
+        </article>
+        <article class="v2-art">
+          <div class="v2-artno">第 13 條<span class="v2-arttitle">實習</span></div>
+          <p>實習學分須於大四上學期前完成，且成績達乙等以上。</p>
+        </article>
+      </main>
+      <aside class="v2-rail" aria-label="版本與標註">
+        <h2>版本紀錄</h2>
+        <ol class="v2-timeline">${tl}</ol>
+        <h2>關聯標註</h2>
+        <div class="v2-note note-stale">${I.alert(15)}<span>學務處 2024/3/15 公告引用「128 學分」→ 已失效（2026-08-01 起）</span></div>
+        <div class="v2-note note-aud">${I.user(15)}<span>適用對象：資管系 116 級（2026 學年度）起</span></div>
+        <div class="v2-note">${I.doc(15)}<span>「130 學分」另見《選課實施細則》第 5 條（學分上限對照）</span></div>
+      </aside>
+    </div>
+  </div>`;
+}
+
+/* ================= 變體 3：知識圖譜畫布（關係優先＋問答浮層） ================= */
+function renderV3(d){
+  const node = (id, cx, cy, w, cat, ttl, cls = "", big = false, strike = false) => `
+    <g class="node ${cls}" transform="translate(${cx},${cy})">
+      <rect x="${-w/2}" y="${big ? -30 : -26}" width="${w}" height="${big ? 60 : 52}" rx="10"/>
+      <text class="cat" y="${big ? -10 : -8}" text-anchor="middle">${cat}</text>
+      <text class="ttl ${big ? 'ttl-big' : ''} ${strike ? 'strike' : ''}" y="${big ? 16 : 12}" text-anchor="middle">${ttl}</text>
+    </g>`;
+  const nodes = [
+    node("q",   430, 110, 175, "問題", "畢業學分要求？", "nq"),
+    node("doc", 660, 240, 190, "文件", "資管系學務規定", "ndoc"),
+    node("c12", 860, 400, 190, "條文", "第 12 條・畢業學分", "ncl"),
+    node("v26", 1080, 240, 155, "版本", "2026 修訂版（現行）", "nver"),
+    node("date",1105, 430, 160, "日期", "生效 2026-08-01", "ndate"),
+    node("f130",860, 620, 175, "事實", "130 學分", "nfact", true),
+    node("aud", 600, 540, 170, "適用對象", "資管系 116 級", "naud"),
+    node("v24", 1080, 560, 150, "版本", "2024 版（已取代）", "sup"),
+    node("f128",1105, 690, 150, "舊事實", "128 學分", "sup", false, true),
+    node("d2",  430, 330, 160, "文件", "選課實施細則", "faint"),
+    node("d3",  430, 470, 160, "文件", "獎助學金作業要點", "faint")
+  ].join("");
+  const edges = `
+    <path class="ev" d="M515,110 L605,216" marker-end="url(#ma)"/>
+    <path class="ev" d="M755,240 L818,372" marker-end="url(#ma)"/>
+    <path class="ev" d="M905,372 L1055,268" marker-end="url(#ma)"/>
+    <path class="ev" d="M1085,268 L1102,402" marker-end="url(#ma)"/>
+    <path class="ev" d="M860,428 L860,588" marker-end="url(#ma)"/>
+    <path class="edge" d="M775,620 L688,548" marker-end="url(#ms)"/>
+    <path class="edge-dash" d="M700,268 C 780,420 880,520 1002,552" marker-end="url(#mg)"/>
+    <path class="edge-dash" d="M1080,588 L1100,662" marker-end="url(#mg)"/>
+    <path class="edge-dash" d="M575,262 L505,308" marker-end="url(#mg)"/>
+    <path class="edge-dash" d="M570,272 L512,446" marker-end="url(#mg)"/>
+    <text class="edgelbl" x="548" y="150">問及</text>
+    <text class="edgelbl" x="766" y="300">第 12 條</text>
+    <text class="edgelbl" x="955" y="315">現行版本</text>
+    <text class="edgelbl" x="1112" y="345">生效於</text>
+    <text class="edgelbl" x="872" y="515">規定</text>
+    <text class="edgelbl" x="698" y="592">適用於</text>
+    <text class="edgelbl" x="850" y="480" fill="#55617a">舊版（已取代）</text>
+    <text class="edgelbl" x="1090" y="632" fill="#55617a">舊規定</text>`;
+  const chain = [
+    ["q", "問題", "畢業學分要求是多少？"],
+    ["doc", "文件", "資管系學務規定"],
+    ["cl", "條文", "第 12 條・畢業學分要求"],
+    ["v26", "版本", "2026 修訂版（現行）"],
+    ["date", "日期", "生效 2026-08-01"],
+    ["fact", "事實", "130 學分（116 級起）"]
+  ].map((c, i, a) => `
+    <div class="ch-item" style="border-left-color:var(--${c[0] === 'fact' ? 'fact' : c[0] === 'v26' ? 'ver' : c[0] === 'date' ? 'date' : c[0] === 'cl' ? 'clause' : c[0] === 'doc' ? 'doc' : 'q'})">
+      <span class="ch-cat" style="color:var(--${c[0] === 'fact' ? 'fact' : c[0] === 'v26' ? 'ver' : c[0] === 'date' ? 'date' : c[0] === 'cl' ? 'clause' : c[0] === 'doc' ? 'doc' : 'q'})">${c[1]}</span>
+      <span class="ch-t">${c[2]}</span>
+    </div>${i < a.length - 1 ? '<div class="ch-link"></div>' : ''}`).join("") + `
+    <div class="ch-item ch-sup" style="border-left-color:#55617a">
+      <span class="ch-cat" style="color:#8b98b3">已取代</span>
+      <span class="ch-t">2024 版・128 學分（不可引用）</span>
+    </div>`;
+  const legend = `
+    <div class="v3-legend">
+      <div class="lg-h">節點圖例</div>
+      <span><i class="lg-dot" style="background:var(--q)"></i>問題／事實</span>
+      <span><i class="lg-dot" style="background:var(--doc)"></i>文件</span>
+      <span><i class="lg-dot" style="background:var(--clause)"></i>條文</span>
+      <span><i class="lg-dot" style="background:var(--ver)"></i>版本（現行）</span>
+      <span><i class="lg-dot" style="background:var(--aud)"></i>適用對象</span>
+      <span><i class="lg-dot" style="background:var(--date)"></i>日期</span>
+      <span><i class="lg-line"></i>虛線＝已取代關係</span>
+      <span><i class="lg-dot" style="background:var(--q)"></i>琥珀流＝證據鏈</span>
+    </div>`;
+  return `
+  <div class="v3" data-v="3">
+    <div class="v3-stage">
+      <svg class="v3-canvas" viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid meet" role="img" aria-label="規章知識圖譜：問題連到文件、條文、版本與學分事實">
+        <defs>
+          <marker id="ms" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#3a4763"/></marker>
+          <marker id="mg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#55617a"/></marker>
+          <marker id="ma" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#f5b942"/></marker>
+        </defs>
+        ${edges}
+        <style>
+          .nq rect{ fill:#1c1a10; stroke:var(--q); stroke-width:2; } .nq .cat{ fill:var(--q); } .nq .ttl{ fill:#ffe9bd; }
+          .ndoc rect{ fill:#10182c; stroke:var(--doc); stroke-width:1.6; } .ndoc .cat{ fill:var(--doc); } .ndoc .ttl{ fill:#dbe6ff; }
+          .ncl rect{ fill:#0d1c1e; stroke:var(--clause); stroke-width:1.6; } .ncl .cat{ fill:var(--clause); } .ncl .ttl{ fill:#c9f4f5; }
+          .nver rect{ fill:#0e1a13; stroke:var(--ver); stroke-width:1.6; } .nver .cat{ fill:var(--ver); } .nver .ttl{ fill:#d3f2da; }
+          .ndate rect{ fill:#131720; stroke:var(--date); stroke-width:1.4; } .ndate .cat{ fill:var(--date); } .ndate .ttl{ fill:#cbd5e1; }
+          .nfact rect{ fill:rgb(245 185 66 / .13); stroke:var(--q); stroke-width:2.4; } .nfact .cat{ fill:var(--q); } .nfact .ttl{ fill:var(--q); }
+          .naud rect{ fill:#171325; stroke:var(--aud); stroke-width:1.4; } .naud .cat{ fill:var(--aud); } .naud .ttl{ fill:#e5ddff; }
+          .sup rect{ fill:#11151f; stroke:#55617a; stroke-width:1.4; stroke-dasharray:5 4; } .sup .cat{ fill:#8b98b3; }
+          .faint rect{ fill:#10151f; stroke:#33415e; stroke-width:1.2; } .faint .cat{ fill:#5f6d8c; } .faint .ttl{ fill:#8b98b3; }
+        </style>
+        ${nodes}
+      </svg>
+      <div class="v3-side">
+        <div class="v3-card">
+          <div class="v3-kick">目前問題</div>
+          <h1 class="v3-q">${d.question}</h1>
+          <div class="v3-inputrow">
+            <input type="text" placeholder="問一條校園規定……" aria-label="輸入問題"/>
+            <button class="v3-ask" title="原型：無後端，不實作提問">問</button>
+          </div>
+          <div class="v3-qchips"><span class="v3-chip">示意資料（合成）</span><span class="v3-chip">現行條文索引</span></div>
+        </div>
+        <div class="v3-card v3-acard">
+          <div class="v3-a-h">${I.check(14)} 回答<span class="conf conf-high" style="background:rgb(87 194 107 / .14);color:var(--ok)">高（${d.confidence.score}）</span></div>
+          <p class="v3-a"><span class="num">130</span> 學分（116 級起）：通識 30・專業核心 40・專業選修 30・實習 12・其他 18</p>
+          <div class="v3-evidence">證據鏈：<b>資管系學務規定 → 第 12 條 → 2026 修訂版（生效 2026-08-01）</b>。5 個節點・1 條現行條文。</div>
+          <div class="v3-warn">${I.alert(15)}<span>2024 版「128 學分」已取代，畫布上以虛線灰色標示，不可引用。</span></div>
+        </div>
+      </div>
+      ${legend}
+    </div>
+    <div class="v3-chain">
+      <div class="ch-h">證據鏈（由問題到答案）</div>
+      ${chain}
+    </div>
+  </div>`;
+}
+
+/* ================= 切換器與路由 ================= */
+const VARIANTS = [
+  { key: "1", name: "對話式問答", render: renderV1 },
+  { key: "2", name: "條文文庫", render: renderV2 },
+  { key: "3", name: "知識圖譜畫布", render: renderV3 }
+];
+const root = document.getElementById("root");
+function getVariant(){
+  const p = new URLSearchParams(location.search);
+  const v = p.get("variant");
+  return VARIANTS.find(x => x.key === v) || VARIANTS[0];
+}
+function render(){
+  const v = getVariant();
+  root.innerHTML =
+    `<div class="pt-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）・示意資料（合成）</div>` +
+    v.render(DATA) +
+    `<div class="switcher" role="toolbar" aria-label="原型變體切換">
+       <button class="sw-btn" data-variant-prev aria-label="上一個變體">${I.chL(16)}</button>
+       <span class="sw-label" data-variant-label></span>
+       <button class="sw-btn" data-variant-next aria-label="下一個變體">${I.chR(16)}</button>
+     </div>`;
+  root.querySelector("[data-variant-label]").textContent = `${v.key} (${v.name})`;
+  root.querySelector("[data-variant-prev]").addEventListener("click", () => cycle(-1));
+  root.querySelector("[data-variant-next]").addEventListener("click", () => cycle(1));
+}
+function cycle(dir){
+  const cur = getVariant();
+  const i = VARIANTS.findIndex(x => x.key === cur.key);
+  const next = VARIANTS[(i + dir + VARIANTS.length) % VARIANTS.length];
+  const url = new URL(location.href);
+  url.searchParams.set("variant", next.key);
+  history.replaceState(null, "", url);
+  render();
+}
+document.addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const t = document.activeElement;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  e.preventDefault();
+  cycle(e.key === "ArrowRight" ? 1 : -1);
+});
+render();
+</script>
+</body>
+</html>

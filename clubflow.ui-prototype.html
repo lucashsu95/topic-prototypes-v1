@@ -1,0 +1,634 @@
+<!-- 設計問題：社團活動智慧排程（含空間衝突解析）的畫面「應該長什麼樣子」？以 ?variant=1..3 切換三個結構迥異的變體：1 時程格線總覽（Gantt 時間軸＋衝突高亮）/ 2 候選排程卡片（候選比對與採用流程）/ 3 分步確認精靈（時段→場地→確認，即時約束回饋）。 -->
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClubFlow · 社團活動智慧排程 — 第一版 UI 原型</title>
+<style>
+/* ================= 設計系統基底（共用 token） ================= */
+:root{
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Noto Sans Mono TC", monospace;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+  --r-s:8px; --r-m:12px; --r-l:14px; --r-pill:999px;
+  --t-h1:24px; --t-h2:16px; --t-body:14px; --t-sm:12.5px; --t-xs:11px;
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --tool-bg:#15161b; --tool-ink:#f4f5f7; --tool-accent:#ffc53d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font-sans);font-size:var(--t-body);line-height:1.55;background:#fff}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+ul,ol{list-style:none}
+input{font:inherit}
+.ic{display:inline-flex;align-items:center}
+.ic svg{display:block}
+:focus-visible{outline:2px solid var(--focus,#2b5fd9);outline-offset:2px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ================= 原型工具外框（不屬於任何變體的設計） ================= */
+.proto-banner{position:sticky;top:0;z-index:60;background:var(--tool-bg);color:var(--tool-ink);display:flex;align-items:center;justify-content:center;gap:var(--s2);padding:var(--s2) var(--s4);font-size:var(--t-sm);text-align:center;line-height:1.5}
+.proto-banner .tag{background:var(--tool-accent);color:#17181d;font-weight:700;font-size:11px;letter-spacing:.08em;padding:2px 8px;border-radius:var(--r-s);flex:none}
+.switcher{position:fixed;left:50%;bottom:var(--s4);transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:2px;background:#101116;border:1.5px solid rgba(255,255,255,.92);border-radius:var(--r-pill);padding:5px;box-shadow:0 2px 6px rgba(0,0,0,.28),0 10px 28px rgba(0,0,0,.4)}
+.switcher button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;transition:background .15s var(--ease-out)}
+.switcher button:hover{background:rgba(255,255,255,.14)}
+.switcher button:active{background:rgba(255,255,255,.24)}
+[data-variant-label]{color:#fff;font-size:13px;font-weight:600;min-width:150px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+#toast{position:fixed;left:50%;bottom:64px;transform:translate(-50%,8px);z-index:99;background:#101116;color:#fff;font-size:var(--t-sm);padding:10px 18px;border-radius:var(--r-pill);border:1px solid rgba(255,255,255,.28);box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .25s var(--ease-out),transform .25s var(--ease-out);max-width:min(92vw,540px);text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* 共用的品牌列與合成資料徽章 */
+.brandrow{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s5)}
+.brand{display:flex;align-items:center;gap:var(--s2)}
+.brand svg{display:block}
+.brand b{font-size:15px;letter-spacing:-.01em}
+.synth{font-size:var(--t-xs);padding:3px 10px;border:1px dashed currentColor;border-radius:var(--r-pill);opacity:.72;white-space:nowrap}
+
+/* ================= 變體 1：時程格線總覽（淺色課表世界） ================= */
+.v1{--bg:#edf0f5;--surface:#fff;--ink:#1d2733;--ink2:#54616f;--line:#c9d1dd;--linesoft:#e3e8ef;
+  --accent:#2b5fd9;--ok:#1e8e4e;--ok-ink:#157341;--ok-soft:#dcefe1;
+  --warn:#a86a00;--warn-ink:#8a5600;--warn-soft:#fbeed0;
+  --err:#cf3f38;--err-ink:#b02f29;--err-soft:#f9dedb;
+  --fill-avail:#dcefe1;--booked:#454f61;
+  --rowh:40px;--labelw:92px;--focus:var(--accent);
+  background:var(--bg);color:var(--ink);min-height:100vh}
+.v1 .wrap{max-width:1180px;margin:0 auto;padding:var(--s5) var(--s4) 96px}
+.v1 h1{font-size:var(--t-h1);font-weight:700;letter-spacing:-.02em;margin-bottom:var(--s2)}
+.v1 .sub{color:var(--ink2);font-size:var(--t-sm);margin-bottom:var(--s4)}
+.v1-chips{display:flex;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s4)}
+.v1-chip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-pill);padding:3px var(--s3);font-size:var(--t-sm)}
+.v1-chip b{font-weight:650}
+.v1-legend{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);margin-bottom:var(--s3);font-size:var(--t-xs);color:var(--ink2)}
+.v1-legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.14)}
+.sw-avail{background:var(--fill-avail)}
+.sw-book{background:var(--booked)}
+.sw-conf{background:#f6d7d3;background-image:repeating-linear-gradient(45deg,rgba(176,47,41,.5) 0 2px,transparent 2px 5px)}
+.sw-cand{border-width:2px;background:var(--surface)}
+.sw-a{border-color:var(--ok)} .sw-b{border-color:var(--warn)} .sw-c{border-color:var(--err)}
+.v1-days{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4)}
+.v1-dayhead{display:flex;align-items:baseline;justify-content:space-between;padding:0 1px var(--s2)}
+.v1-dayhead b{font-size:var(--t-body);font-weight:700}
+.v1-dayhead span{font-family:var(--font-mono);font-size:var(--t-xs);color:var(--ink2);font-variant-numeric:tabular-nums}
+.v1-grid{display:grid;grid-template-columns:var(--labelw) repeat(7,1fr);gap:1px;background:var(--linesoft);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
+.v1-corner{background:var(--surface)}
+.v1-hh{background:var(--surface);min-height:22px;font-family:var(--font-mono);font-size:10px;color:var(--ink2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;font-variant-numeric:tabular-nums}
+.v1-cell{background:var(--surface);min-height:var(--rowh)}
+.v1-cell.is-avail,.v1-cell.is-open{background:var(--fill-avail)}
+.v1-cell.is-book{background:var(--booked);color:#fff;font-size:9.5px;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap}
+.v1-cell.is-conflict{background-image:repeating-linear-gradient(45deg,rgba(176,47,41,.4) 0 2px,transparent 2px 6px);box-shadow:inset 0 0 0 1px rgba(176,47,41,.55)}
+.v1-rl{background:var(--surface);display:flex;align-items:center;padding:0 var(--s2);font-size:var(--t-xs);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v1-rl.is-venue{font-weight:500;color:var(--ink2)}
+.v1-cand{position:relative;z-index:1;border:2px solid;border-radius:6px;margin:3px 2px;min-height:calc(var(--rowh) - 6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transform-origin:left center;animation:growX .5s var(--ease-out) backwards}
+.v1-cand b{font-size:10.5px;font-weight:700}
+.v1-cand span{font-family:var(--font-mono);font-size:9.5px;font-variant-numeric:tabular-nums}
+.v1-cand.ok{border-color:var(--ok);background:var(--ok-soft);color:var(--ok-ink)}
+.v1-cand.warn{border-color:var(--warn);background:var(--warn-soft);color:var(--warn-ink)}
+.v1-cand.err{border-color:var(--err);background:var(--err-soft);color:var(--err-ink)}
+.v1-cand.is-focus{outline:2px solid var(--accent);outline-offset:1px}
+.v1-cands{margin-top:var(--s5);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:var(--s4)}
+.v1-cands h2{font-size:var(--t-h2);font-weight:700;margin-bottom:var(--s5)}
+.v1-crow{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:var(--s2) var(--s3);align-items:start;padding:var(--s4) 0;border-radius:var(--r-s);cursor:pointer;transition:background .15s var(--ease-out)}
+.v1-crow + .v1-crow{border-top:1px solid var(--linesoft)}
+.v1-crow:hover{background:var(--linesoft)}
+.v1-crow.is-focus{background:#e8eefb;box-shadow:inset 0 0 0 1px var(--accent)}
+.v1-cdot{width:12px;height:12px;border-radius:4px;margin-top:4px}
+.v1-crow.ok .v1-cdot{background:var(--ok)} .v1-crow.warn .v1-cdot{background:var(--warn)} .v1-crow.err .v1-cdot{background:var(--err)}
+.v1-cname{font-size:var(--t-body);font-weight:650;font-variant-numeric:tabular-nums}
+.v1-cvenue{font-size:var(--t-sm);color:var(--ink2)}
+.v1-cst{font-size:var(--t-xs);font-weight:650;padding:2px 10px;border-radius:var(--r-pill);white-space:nowrap;margin-top:2px}
+.v1-crow.ok .v1-cst{background:var(--ok-soft);color:var(--ok-ink)}
+.v1-crow.warn .v1-cst{background:var(--warn-soft);color:var(--warn-ink)}
+.v1-crow.err .v1-cst{background:var(--err-soft);color:var(--err-ink)}
+.v1-cissues{grid-column:2/4;font-size:var(--t-sm);color:var(--ink2)}
+.v1-crow.err .v1-cissues{color:var(--err-ink)}
+.v1-note{margin-top:var(--s4);font-size:var(--t-xs);color:var(--ink2);line-height:1.8}
+/* ================= 變體 2：候選排程卡片（深色求解器控制台） ================= */
+.v2{--bg:#0f141b;--surface:#151c26;--surface2:#1b2432;--ink:#e8edf4;--ink2:#98a5b6;
+  --line:rgba(255,255,255,.11);--line-soft:rgba(255,255,255,.06);
+  --ok:#43cf87;--ok-ink:#8fe3b6;--ok-soft:rgba(67,207,135,.13);
+  --warn:#eab04c;--warn-ink:#f2c98a;--warn-soft:rgba(234,176,76,.13);
+  --err:#ef7168;--err-ink:#f5a29b;--err-soft:rgba(239,113,104,.13);
+  --accent:#7aa5ff;--focus:var(--accent);
+  background:var(--bg);color:var(--ink);min-height:100vh}
+.v2 .wrap{max-width:1080px;margin:0 auto;padding:var(--s5) var(--s4) 96px}
+.v2 h1{font-size:var(--t-h1);font-weight:700;letter-spacing:-.02em}
+.v2 .meta{font-family:var(--font-mono);font-size:var(--t-xs);color:var(--ink2);margin-top:var(--s2);line-height:1.8;font-variant-numeric:tabular-nums}
+.v2-head{margin-bottom:var(--s5)}
+.v2-body{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--s5);align-items:start}
+.v2-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:var(--s4);margin-bottom:var(--s4);animation:rise .45s var(--ease-out) backwards}
+.v2-card.is-accepted{border-color:rgba(67,207,135,.6)}
+.v2-ctop{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+.v2-rank{font-size:var(--t-xs);font-weight:700;padding:3px 10px;border-radius:var(--r-pill);flex:none}
+.v2-rank.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.v2-rank.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.v2-rank.err{background:var(--err-soft);color:var(--err-ink)}
+.v2-ctop h2{font-size:var(--t-h2);font-weight:700;display:flex;align-items:baseline;gap:var(--s2);flex-wrap:wrap}
+.v2-when{font-family:var(--font-mono);font-size:var(--t-sm);color:var(--ink2);font-weight:400;font-variant-numeric:tabular-nums}
+.v2-venue{font-size:var(--t-sm);color:var(--ink2);margin:var(--s2) 0 var(--s3)}
+.v2-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.v2-stripcell{height:18px;border-radius:3px;background:var(--line-soft)}
+.v2-stripcell.is-open{background:rgba(67,207,135,.16)}
+.v2-stripcell.is-book{background:#2c3947}
+.v2-card.ok .v2-stripcell.is-cand{background:var(--ok)}
+.v2-card.warn .v2-stripcell.is-cand{background:var(--warn)}
+.v2-card.err .v2-stripcell.is-cand{background:var(--err)}
+.v2-striplabels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9.5px;color:var(--ink2);margin:var(--s2) 0 var(--s3);font-variant-numeric:tabular-nums}
+.v2-checks{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2) var(--s4);border-top:1px solid var(--line-soft);padding-top:var(--s3)}
+.v2-ck{display:flex;align-items:flex-start;gap:6px;font-size:var(--t-sm);line-height:1.5;color:var(--ink)}
+.v2-ck .ic{flex:none;margin-top:3px}
+.v2-ck.ok .ic{color:var(--ok)}
+.v2-ck.warn{color:var(--warn-ink)} .v2-ck.warn .ic{color:var(--warn)}
+.v2-ck.err{color:var(--err-ink)} .v2-ck.err .ic{color:var(--err)}
+.v2-actions{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s3)}
+.v2-btn{font-size:var(--t-sm);font-weight:650;padding:8px var(--s4);border-radius:var(--r-s);transition:filter .15s var(--ease-out),border-color .15s var(--ease-out),color .15s var(--ease-out)}
+.v2-btn-primary{background:var(--ok);color:#0a2c1c}
+.v2-btn-primary:hover:not(:disabled){filter:brightness(1.12)}
+.v2-btn-primary:disabled{background:var(--surface2);color:var(--ink2);cursor:not-allowed}
+.v2-btn-ghost{border:1px solid var(--line);color:var(--ink2)}
+.v2-btn-ghost:hover{border-color:var(--ink2);color:var(--ink)}
+.v2-accepted{margin-top:var(--s3);font-size:var(--t-sm);color:var(--ok-ink);display:flex;gap:6px;align-items:flex-start;line-height:1.5}
+.v2-rail section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:var(--s4);margin-bottom:var(--s4);animation:rise .45s var(--ease-out) backwards}
+.v2-rail h3{font-size:var(--t-sm);font-weight:700;color:var(--ink2);margin-bottom:var(--s3)}
+.v2-reqline{font-size:var(--t-sm);line-height:1.8}
+.v2-mtable{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:var(--s2) var(--s3);font-family:var(--font-mono);font-size:11px;font-variant-numeric:tabular-nums}
+.v2-mtable .hd{color:var(--ink2)}
+.v2-mname{font-weight:650;color:var(--ink)}
+.v2-vblock{font-size:var(--t-sm);line-height:1.7;padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+.v2-vblock:first-of-type{border-top:none;padding-top:0}
+.v2-vblock b{font-weight:650}
+.v2-vblock .cap{font-family:var(--font-mono);color:var(--ink2);font-size:11px}
+.v2-vblock p{color:var(--ink2)}
+
+/* ================= 變體 3：分步確認精靈（綠色表單流程世界） ================= */
+.v3{--bg:#f2f5f0;--surface:#fff;--ink:#1f2a22;--ink2:#5d6c60;--line:#dbe3d8;--linesoft:#e9efe7;
+  --primary:#0b7a4b;--primary-ink:#fff;--primary-soft:#e0efe6;--accent:#0a9b5c;
+  --ok:#0b7a4b;--ok-soft:#e0efe6;--warn:#9a6b00;--warn-soft:#f7edd4;--err:#c2403a;--err-soft:#f7e1df;
+  --shadow:0 1px 2px rgba(31,42,34,.05),0 10px 28px rgba(31,42,34,.09);
+  --focus:var(--primary);
+  background:var(--bg);color:var(--ink);min-height:100vh}
+.v3 .wrap{max-width:1080px;margin:0 auto;padding:var(--s5) var(--s4) 96px}
+.v3 h1{font-size:var(--t-h1);font-weight:700;letter-spacing:-.02em;margin-bottom:var(--s2)}
+.v3 .sub{font-size:var(--t-sm);color:var(--ink2);margin-bottom:var(--s5)}
+.v3-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-bottom:var(--s5)}
+.v3-step{display:flex;gap:var(--s2);align-items:flex-start;background:var(--surface);border-radius:var(--r-m);box-shadow:var(--shadow);padding:var(--s3)}
+.v3-step b{display:block;font-size:var(--t-sm);font-weight:700}
+.v3-step > div span{font-size:10.5px;color:var(--ink2);font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.v3-step-ic,.v3-step-n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;margin-top:1px;font-size:12px;font-weight:700}
+.v3-step.is-done .v3-step-ic{background:var(--primary-soft);color:var(--primary)}
+.v3-step.is-active{box-shadow:0 0 0 2px var(--primary),var(--shadow)}
+.v3-step.is-active .v3-step-n{background:var(--primary);color:#fff}
+.v3-step.is-todo{opacity:.62}
+.v3-step-n{background:var(--linesoft);color:var(--ink2)}
+.v3-step.is-done .v3-step-ic svg path{stroke-dasharray:22;stroke-dashoffset:22;animation:draw .5s .15s var(--ease-out) forwards}
+.v3-main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:var(--s5);align-items:start}
+.v3-venues h2,.v3-side h2{font-size:var(--t-h2);font-weight:700;margin-bottom:var(--s3)}
+.v3-note{font-weight:400;font-size:var(--t-sm);color:var(--ink2)}
+.v3-venue{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow);padding:var(--s4);margin-bottom:var(--s4);cursor:pointer;animation:rise .45s var(--ease-out) backwards;transition:box-shadow .2s var(--ease-out)}
+.v3-venue.is-selected{box-shadow:0 0 0 2px var(--primary),var(--shadow)}
+.v3-vtop{display:flex;align-items:center;gap:var(--s2);justify-content:space-between;flex-wrap:wrap;margin-bottom:var(--s2)}
+.v3-vtop b{font-size:var(--t-h2);font-weight:700}
+.v3-vst{font-size:var(--t-xs);font-weight:700;padding:3px 10px;border-radius:var(--r-pill)}
+.v3-vst.ok{background:var(--ok-soft);color:var(--ok)}
+.v3-vst.err{background:var(--err-soft);color:var(--err)}
+.v3-vspec{font-size:var(--t-sm);color:var(--ink2);margin-bottom:var(--s3);line-height:1.7}
+.v3-checkrows{border-top:1px solid var(--linesoft);padding-top:var(--s3);display:grid;gap:var(--s2)}
+.v3-cr{display:flex;gap:var(--s2);align-items:flex-start;font-size:var(--t-sm);line-height:1.55}
+.v3-cr .ic{flex:none;margin-top:3px}
+.v3-cr.ok .ic{color:var(--ok)}
+.v3-cr.err .ic{color:var(--err)}
+.v3-cr.warn .ic{color:var(--warn)}
+.v3-side section{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow);padding:var(--s4);margin-bottom:var(--s4);animation:rise .45s var(--ease-out) backwards}
+.v3-fbrow{display:grid;grid-template-columns:84px 20px minmax(0,1fr);gap:var(--s2);align-items:start;padding:var(--s2) 0;border-top:1px solid var(--linesoft);font-size:var(--t-sm);line-height:1.55}
+.v3-fbrow:first-of-type{border-top:none;padding-top:0}
+.v3-fbl{font-weight:650;color:var(--ink2)}
+.v3-fbrow .ic{margin-top:3px}
+.v3-fbrow.ok .ic{color:var(--ok)} .v3-fbrow.err .ic{color:var(--err)} .v3-fbrow.warn .ic{color:var(--warn)}
+.v3-progress{margin:var(--s3) 0;font-size:var(--t-sm);color:var(--ink2);line-height:1.6}
+.v3-progress b{color:var(--ink)}
+.v3-next{width:100%;background:var(--primary);color:var(--primary-ink);font-weight:700;font-size:var(--t-body);padding:11px var(--s4);border-radius:var(--r-s);transition:filter .15s var(--ease-out)}
+.v3-next:hover:not(:disabled){filter:brightness(1.1)}
+.v3-next:disabled{background:#b9c8bc;color:#f2f5f0;cursor:not-allowed}
+.v3-hint{font-size:var(--t-xs);color:var(--ink2);margin-top:var(--s2);text-align:center}
+.v3-preview .row{display:flex;justify-content:space-between;gap:var(--s3);font-size:var(--t-sm);padding:var(--s2) 0;border-top:1px solid var(--linesoft);line-height:1.5}
+.v3-preview .row:first-of-type{border-top:none;padding-top:0}
+.v3-preview .row b{font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
+.v3-preview label{font-size:var(--t-sm);font-weight:650;display:block;margin-top:var(--s3);margin-bottom:var(--s2)}
+.v3-preview input{width:100%;background:#fbfdfb;border:1px solid var(--line);border-radius:10px;padding:9px var(--s3);font-size:var(--t-sm);color:var(--ink)}
+.v3-preview input:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+/* ================= 瀏覽器表面主題化 ================= */
+body[data-variant="1"]{scrollbar-color:#9aa7ba #edf0f5}
+body[data-variant="1"] ::selection{background:#c9d8f5}
+body[data-variant="2"]{color-scheme:dark;scrollbar-color:#3a4658 #0f141b}
+body[data-variant="2"] ::selection{background:#2c4a75}
+body[data-variant="2"] ::-webkit-scrollbar{width:12px;height:12px}
+body[data-variant="2"] ::-webkit-scrollbar-thumb{background:#3a4658;border-radius:8px;border:3px solid #0f141b}
+body[data-variant="2"] ::-webkit-scrollbar-track{background:#0f141b}
+body[data-variant="3"]{scrollbar-color:#a9bfae #f2f5f0}
+body[data-variant="3"] ::selection{background:#c4e5d2}
+
+/* ================= 動效（每變體一個編排時刻） ================= */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes growX{from{transform:scaleX(.2);opacity:0}to{transform:scaleX(1);opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ================= 響應式 ================= */
+@media (max-width:900px){
+  .v2-body{grid-template-columns:1fr}
+  .v3-main{grid-template-columns:1fr}
+  .v2-checks{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .v1{--rowh:34px;--labelw:64px}
+  .v1 .wrap,.v2 .wrap,.v3 .wrap{padding:var(--s4) var(--s3) 96px}
+  .v1 h1,.v2 h1,.v3 h1{font-size:20px}
+  .v1-days{grid-template-columns:1fr}
+  .v3-step b{font-size:12px}
+  .v3-step > div span{font-size:9.5px}
+  .v3-fbrow{grid-template-columns:70px 18px minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div data-prototype-banner class="proto-banner"><span class="tag">PROTOTYPE</span><span>一次性原型 — 第一版（供評審，非最終設計）· 頁面內全部為合成資料</span></div>
+  <main id="variant-root" aria-live="polite"></main>
+</div>
+
+<nav class="switcher" aria-label="原型變體切換">
+  <button type="button" data-variant-prev aria-label="上一個變體"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+  <span data-variant-label role="status">1 (時程格線總覽)</span>
+  <button type="button" data-variant-next aria-label="下一個變體"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+</nav>
+
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+/* 合成 mock 資料（非真實人物、非真實統計） */
+var DATA = {
+  activity:{ club:'桌遊社', name:'秋季招新體驗日', headcount:25, hours:3, crewCount:5 },
+  days:[
+    { key:'fri', label:'週五', date:'11/06' },
+    { key:'sat', label:'週六', date:'11/07' },
+    { key:'sun', label:'週日', date:'11/08' }
+  ],
+  members:[
+    { id:'m1', name:'阿哲', avail:{ fri:[17,21], sat:[14,22], sun:[10,18] } },
+    { id:'m2', name:'小柔', avail:{ fri:[18,23], sat:[9,23],  sun:[12,18] } },
+    { id:'m3', name:'阿凱', avail:{ fri:[10,23], sat:[16,23], sun:[14,20] } },
+    { id:'m4', name:'美玲', avail:{ fri:[16,20], sat:[13,21], sun:[10,16] } },
+    { id:'m5', name:'建宏', avail:{ fri:[18,22], sat:[9,22],  sun:[9,14]  } }
+  ],
+  venues:[
+    { id:'vA', name:'一號館 3 樓 301', short:'一號館 301', capacity:40,
+      equip:{ projector:true, tables:true, audio:false },
+      windows:{ fri:[17,22], sat:[17,22], sun:[17,22] },
+      windowText:'週五～日 17:00–22:00',
+      bookings:[ { day:'sat', start:19, end:21, who:'攝影社' } ] },
+    { id:'vB', name:'綜合大樓 B1 活動室', short:'綜合 B1 活動室', capacity:60,
+      equip:{ projector:true, tables:true, audio:true },
+      windows:{ fri:[16,23], sat:[10,22], sun:[10,18] },
+      windowText:'週五 16–23 / 週六 10–22 / 週日 10–18',
+      bookings:[ { day:'sat', start:14, end:16, who:'吉他社' } ] }
+  ],
+  candidates:[
+    { id:'A', rank:'建議', status:'ok', day:'sat', start:17, end:20, venueId:'vB', issues:[] },
+    { id:'B', rank:'次選', status:'warn', day:'fri', start:18, end:21, venueId:'vA',
+      issues:['場地無音響（軟性條件未達）','美玲 20:00–21:00 不在場'] },
+    { id:'C', rank:'需調整', status:'err', day:'sun', start:16, end:19, venueId:'vA',
+      issues:['16:00–17:00 早於場地開放（週日 17:00 起）','阿哲、小柔、美玲、建宏 4 人無法完整出席'] }
+  ]
+};
+var HOURS=[16,17,18,19,20,21,22];
+var ORDER=['1','2','3'];
+var VNAME={'1':'時程格線總覽','2':'候選排程卡片','3':'分步確認精靈'};
+var state={ variant:'1', v1Focus:null, v2Accepted:null, v3Venue:null, v3Note:'需於 16:30 前到場布置' };
+
+function fmt(h){ return String(h).padStart(2,'0')+':00'; }
+function rt(s,e){ return fmt(s)+'–'+fmt(e); }
+function coversR(r,s,e){ return !!r && r[0]<=s && e<=r[1]; }
+function ov(a1,a2,b1,b2){ return a1<b2 && b1<a2; }
+function venue(id){ return DATA.venues.find(function(v){return v.id===id;}); }
+function dayOf(k){ return DATA.days.find(function(d){return d.key===k;}); }
+function dlab(k){ var d=dayOf(k); return d.label+' '+d.date; }
+
+var SVG='<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+var IC={
+  check: SVG+'<path d="M3 8.5 6.4 12 13 4.5"/></svg>',
+  cross: SVG+'<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>',
+  warn:  SVG+'<path d="M8 2.2 14.6 13.4H1.4Z"/><path d="M8 6.8v3M8 11.9h.01"/></svg>',
+  dot:   SVG+'<circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/></svg>'
+};
+function ic(n){ return '<span class="ic">'+IC[n]+'</span>'; }
+function mark(c){
+  return '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="5" fill="'+c+'"/><rect x="5" y="6" width="12" height="2.6" rx="1.3" fill="#fff" opacity=".95"/><rect x="5" y="10" width="8" height="2.6" rx="1.3" fill="#fff" opacity=".72"/><rect x="5" y="14" width="10" height="2.6" rx="1.3" fill="#fff" opacity=".5"/></svg>';
+}
+function brand(c){
+  return '<div class="brandrow"><div class="brand">'+mark(c)+'<b>ClubFlow</b></div><span class="synth">合成資料 · mock</span></div>';
+}
+
+/* 衝突格：候選 × 場地開放 × 成員可用（逐小時檢查，非手繪） */
+var CONF=(function(){
+  var m={};
+  DATA.candidates.forEach(function(c){
+    var v=venue(c.venueId);
+    for(var h=c.start; h<c.end; h++){
+      if(!coversR(v.windows[c.day],h,h+1)) m[c.day+'|V'+c.venueId+'|'+h]='候選 '+c.id+'：'+fmt(h)+'–'+fmt(h+1)+' 超出場地開放時段';
+      DATA.members.forEach(function(mem){
+        if(!coversR(mem.avail[c.day],h,h+1)) m[c.day+'|M'+mem.id+'|'+h]='候選 '+c.id+'：'+mem.name+' '+fmt(h)+'–'+fmt(h+1)+' 不在場';
+      });
+    }
+  });
+  return m;
+})();
+function conf(day,rid,h){ return CONF[day+'|'+rid+'|'+h]||''; }
+
+function renderV1(){
+  var a=DATA.activity;
+  var chips=[['人數',a.headcount+' 人'],['時長',a.hours+' 小時'],['容量','≥ '+a.headcount],['設備','投影機 / 長桌'],['軟性','音響'],['幹部出席',a.crewCount+' 人']]
+    .map(function(x){ return '<span class="v1-chip">'+x[0]+' <b>'+x[1]+'</b></span>'; }).join('');
+
+  var days=DATA.days.map(function(day){
+    var cells='<div class="v1-corner"></div>';
+    HOURS.forEach(function(h){ cells+='<div class="v1-hh">'+h+'</div>'; });
+    DATA.members.forEach(function(m){
+      cells+='<div class="v1-rl">'+m.name+'</div>';
+      HOURS.forEach(function(h){
+        var avail=coversR(m.avail[day.key],h,h+1);
+        var t=conf(day.key,'M'+m.id,h);
+        cells+='<div class="v1-cell'+(avail?' is-avail':'')+(t?' is-conflict':'')+'"'+(t?' title="'+t+'"':'')+'></div>';
+      });
+    });
+    DATA.venues.forEach(function(v){
+      cells+='<div class="v1-rl is-venue">'+v.short+'</div>';
+      HOURS.forEach(function(h){
+        var b=v.bookings.find(function(bk){ return bk.day===day.key && h>=bk.start && h+1<=bk.end; });
+        var t=conf(day.key,'V'+v.id,h);
+        if(b){
+          cells+='<div class="v1-cell is-book'+(t?' is-conflict':'')+'"'+(t?' title="'+t+'"':'')+'>'+(h===b.start?b.who:'')+'</div>';
+        }else{
+          var open=coversR(v.windows[day.key],h,h+1);
+          cells+='<div class="v1-cell'+(open?' is-open':'')+(t?' is-conflict':'')+'"'+(t?' title="'+t+'"':'')+'></div>';
+        }
+      });
+    });
+    cells+='<div class="v1-rl">候選落點</div>';
+    HOURS.forEach(function(){ cells+='<div class="v1-cell"></div>'; });
+    var candRow=1+1+DATA.members.length+DATA.venues.length;
+    DATA.candidates.forEach(function(c,idx){
+      if(c.day!==day.key) return;
+      var c1=2+(c.start-16), c2=2+(c.end-16)+1;
+      cells+='<div class="v1-cand '+c.status+(state.v1Focus===c.id?' is-focus':'')+'" style="grid-row:'+candRow+';grid-column:'+c1+'/'+c2+';animation-delay:'+(120+idx*130)+'ms"><b>候選 '+c.id+'</b><span>'+rt(c.start,c.end)+'</span></div>';
+    });
+    return '<section class="v1-day"><div class="v1-dayhead"><b>'+day.label+'</b><span>'+day.date+'</span></div><div class="v1-grid">'+cells+'</div></section>';
+  }).join('');
+
+  var crows=DATA.candidates.map(function(c){
+    var v=venue(c.venueId);
+    var st=c.status==='ok'?'無衝突':c.status==='warn'?c.issues.length+' 項缺口':'衝突 '+c.issues.length+' 項';
+    var detail=c.issues.join('；')||'無衝突；硬性與軟性條件全數符合，5 位幹部皆可完整出席。';
+    return '<div class="v1-crow '+c.status+(state.v1Focus===c.id?' is-focus':'')+'" data-action="v1-focus" data-id="'+c.id+'" role="button" tabindex="0" aria-pressed="'+(state.v1Focus===c.id)+'">'
+      +'<span class="v1-cdot"></span>'
+      +'<div><div class="v1-cname">候選 '+c.id+' · '+dlab(c.day)+' '+rt(c.start,c.end)+'</div><div class="v1-cvenue">'+v.name+' · '+c.rank+'</div></div>'
+      +'<span class="v1-cst">'+st+'</span>'
+      +'<p class="v1-cissues">'+detail+'</p>'
+      +'</div>';
+  }).join('');
+
+  return '<div class="v1"><div class="wrap">'+brand('#2b5fd9')
+    +'<h1>下週排程總覽</h1>'
+    +'<p class="sub">桌遊社「秋季招新體驗日」· 為一檔 3 小時活動尋找落點 · 時間軸 16:00–23:00</p>'
+    +'<div class="v1-chips">'+chips+'</div>'
+    +'<div class="v1-legend">'
+      +'<span><i class="sw sw-avail"></i>可用 / 開放</span>'
+      +'<span><i class="sw sw-book"></i>既有預訂</span>'
+      +'<span><i class="sw sw-conf"></i>衝突 / 缺口（滑鼠懸停可看說明）</span>'
+      +'<span><i class="sw sw-cand sw-a"></i>候選 A</span>'
+      +'<span><i class="sw sw-cand sw-b"></i>候選 B</span>'
+      +'<span><i class="sw sw-cand sw-c"></i>候選 C</span>'
+    +'</div>'
+    +'<div class="v1-days">'+days+'</div>'
+    +'<div class="v1-cands"><h2>候選排程與衝突</h2>'+crows+'</div>'
+    +'<p class="v1-note">備註：綜合大樓 B1 活動室另有週六 14:00–16:00 的吉他社預訂（早於時間軸起點）。紅色斜線＝該候選所需時段無法成立的格子。點下方任一候選，可在格線中突出其落點位置。</p>'
+    +'</div></div>';
+}
+function checksFor(c,v){
+  var s=c.start, e=c.end, day=c.day, w=v.windows[day], R=[];
+  function push(k,t){ R.push('<li class="v2-ck '+k+'">'+ic(k==='ok'?'check':k==='warn'?'warn':'cross')+'<span>'+t+'</span></li>'); }
+  push('ok','容量 '+v.capacity+' 人 ≥ '+DATA.activity.headcount+' 人');
+  push(coversR(w,s,e)?'ok':'err', coversR(w,s,e)?'開放時段涵蓋此檔':('開放時段 '+rt(w[0],w[1])+' 不涵蓋'));
+  var ob=v.bookings.filter(function(b){ return b.day===day && ov(s,e,b.start,b.end); });
+  push(ob.length?'err':'ok', ob.length?('與既有預訂重疊：'+ob.map(function(b){return b.who+' '+rt(b.start,b.end);}).join('、')):'與既有預訂無重疊');
+  var hard=v.equip.projector && v.equip.tables;
+  push(hard?'ok':'err', hard?'投影機 / 長桌齊備':'缺硬性設備');
+  push(v.equip.audio?'ok':'warn', v.equip.audio?'音響齊備':'無音響（軟性條件未達）');
+  var absent=DATA.members.filter(function(m){ return !coversR(m.avail[day],s,e); });
+  if(!absent.length) push('ok', DATA.members.length+'/'+DATA.members.length+' 位幹部可完整出席');
+  else push(absent.length>=3?'err':'warn', (DATA.members.length-absent.length)+'/'+DATA.members.length+' 位幹部可出席 · '+absent.map(function(m){return m.name;}).join('、')+' 缺席');
+  return R.join('');
+}
+function v2mtable(){
+  var hd='<div class="hd">姓名</div><div class="hd">週五</div><div class="hd">週六</div><div class="hd">週日</div>';
+  var rows=DATA.members.map(function(m){
+    return '<div class="v2-mname">'+m.name+'</div>'
+      +'<div>'+m.avail.fri[0]+'–'+m.avail.fri[1]+'</div>'
+      +'<div>'+m.avail.sat[0]+'–'+m.avail.sat[1]+'</div>'
+      +'<div>'+m.avail.sun[0]+'–'+m.avail.sun[1]+'</div>';
+  }).join('');
+  return '<div class="v2-mtable">'+hd+rows+'</div>';
+}
+function v2venues(){
+  return DATA.venues.map(function(v){
+    return '<div class="v2-vblock"><b>'+v.name+'</b> <span class="cap">容量 '+v.capacity+' 人</span>'
+      +'<p>投影機 '+(v.equip.projector?'有':'無')+' · 長桌 '+(v.equip.tables?'有':'無')+' · 音響 '+(v.equip.audio?'有':'無')+'</p>'
+      +'<p>開放：'+v.windowText+'</p>'
+      +'<p>既有預訂：'+v.bookings.map(function(b){ return dlab(b.day)+' '+rt(b.start,b.end)+'（'+b.who+'）'; }).join('、')+'</p>'
+      +'</div>';
+  }).join('');
+}
+function renderV2(){
+  var a=DATA.activity;
+  var cards=DATA.candidates.map(function(c,i){
+    var v=venue(c.venueId), d=dayOf(c.day), w=v.windows[c.day];
+    var accepted=state.v2Accepted===c.id;
+    var strip='';
+    HOURS.forEach(function(h){
+      var cls='v2-stripcell';
+      var inB=v.bookings.some(function(b){ return b.day===c.day && h>=b.start && h+1<=b.end; });
+      if(h>=c.start && h+1<=c.end) cls+=' is-cand';
+      else if(inB) cls+=' is-book';
+      else if(coversR(w,h,h+1)) cls+=' is-open';
+      strip+='<div class="'+cls+'"></div>';
+    });
+    var acceptBtn=c.status==='err'
+      ?'<button class="v2-btn v2-btn-primary" disabled>無法採用 · 有衝突</button>'
+      :'<button class="v2-btn v2-btn-primary" data-action="v2-accept" data-id="'+c.id+'">'+(accepted?'已採用 '+IC.check:'採用此候選')+'</button>';
+    return '<article class="v2-card '+c.status+(accepted?' is-accepted':'')+'" style="animation-delay:'+(i*70)+'ms">'
+      +'<div class="v2-ctop"><span class="v2-rank '+c.status+'">'+c.rank+'</span><h2>候選 '+c.id+'<span class="v2-when">'+d.label+' '+d.date+' '+rt(c.start,c.end)+'</span></h2></div>'
+      +'<p class="v2-venue">'+v.name+' · 容量 '+v.capacity+' 人</p>'
+      +'<div class="v2-strip">'+strip+'</div>'
+      +'<div class="v2-striplabels"><span>16:00</span><span>'+d.label+' 開放 / 預訂 / 落點</span><span>23:00</span></div>'
+      +'<ul class="v2-checks">'+checksFor(c,v)+'</ul>'
+      +'<div class="v2-actions">'+acceptBtn+'<button class="v2-btn v2-btn-ghost" data-action="v2-adjust" data-id="'+c.id+'">微調時段</button></div>'
+      +(accepted?'<p class="v2-accepted">'+ic('check')+'<span>已採用此候選（原型存根）— 正式版會通知全部 '+a.crewCount+' 位幹部</span></p>':'')
+      +'</article>';
+  }).join('');
+  return '<div class="v2"><div class="wrap">'+brand('#43cf87')
+    +'<div class="v2-head"><h1>求解結果</h1>'
+    +'<p class="meta">標的：'+a.club+'「'+a.name+'」（'+a.headcount+' 人 / '+a.hours+' 小時） · 輸入：'+a.crewCount+' 位幹部可用時段 × 2 間場地條件 · 輸出：3 個候選</p></div>'
+    +'<div class="v2-body"><div class="v2-cands">'+cards+'</div>'
+    +'<aside class="v2-rail">'
+    +'<section style="animation-delay:120ms"><h3>活動需求</h3><p class="v2-reqline">'+a.headcount+' 人 · '+a.hours+' 小時<br>硬性：容量 ≥ '+a.headcount+' / 投影機 / 可搬長桌<br>軟性：音響<br>'+a.crewCount+' 位幹部需完整出席</p></section>'
+    +'<section style="animation-delay:180ms"><h3>幹部可用時段（'+a.crewCount+' 位）· 單位：時</h3>'+v2mtable()+'</section>'
+    +'<section style="animation-delay:240ms"><h3>場地條件（2 間）</h3>'+v2venues()+'</section>'
+    +'</aside></div></div></div>';
+}
+function renderV3(){
+  var a=DATA.activity;
+  var SEL={ day:'sat', s:17, e:20 }, dSel=dayOf(SEL.day);
+  function vcheck(v){
+    var w=v.windows[SEL.day];
+    var ob=v.bookings.filter(function(b){ return b.day===SEL.day && ov(SEL.s,SEL.e,b.start,b.end); });
+    var hardOk=v.capacity>=a.headcount && coversR(w,SEL.s,SEL.e) && !ob.length && v.equip.projector && v.equip.tables;
+    return { w:w, ob:ob, hardOk:hardOk };
+  }
+  var vcards=DATA.venues.map(function(v,i){
+    var ck=vcheck(v), sel=state.v3Venue===v.id;
+    var rows=[];
+    function push(k,t){ rows.push('<div class="v3-cr '+k+'">'+ic(k==='ok'?'check':k==='warn'?'warn':'cross')+'<span>'+t+'</span></div>'); }
+    push(v.capacity>=a.headcount?'ok':'err','容量 '+v.capacity+' 人 '+(v.capacity>=a.headcount?'≥':'<')+' '+a.headcount+' 人');
+    push(coversR(ck.w,SEL.s,SEL.e)?'ok':'err','開放時段 '+rt(ck.w[0],ck.w[1])+(coversR(ck.w,SEL.s,SEL.e)?' 涵蓋此檔':' 不涵蓋此檔'));
+    push(ck.ob.length?'err':'ok', ck.ob.length
+      ? '與既有預訂重疊：'+ck.ob.map(function(b){ return b.who+' '+rt(b.start,b.end)+' → '+rt(Math.max(SEL.s,b.start),Math.min(SEL.e,b.end)); }).join('、')
+      : '與既有預訂無重疊');
+    push(v.equip.audio?'ok':'warn','投影機有 · 長桌有 · 音響 '+(v.equip.audio?'有':'無（軟性條件）'));
+    return '<div class="v3-venue'+(sel?' is-selected':'')+'" data-action="v3-venue" data-id="'+v.id+'" role="button" tabindex="0" aria-pressed="'+sel+'" style="animation-delay:'+(i*70)+'ms">'
+      +'<div class="v3-vtop"><b>'+v.name+'</b><span class="v3-vst '+(ck.hardOk?'ok':'err')+'">'+(ck.hardOk?'可行':'有衝突')+'</span></div>'
+      +'<p class="v3-vspec">容量 '+v.capacity+' 人 · 開放：'+v.windowText+(v.bookings.length?' · 既有預訂：'+v.bookings.map(function(b){ return dlab(b.day)+' '+rt(b.start,b.end)+'（'+b.who+'）'; }).join('、'):'')+'</p>'
+      +'<div class="v3-checkrows">'+rows.join('')+'</div>'
+      +'</div>';
+  }).join('');
+
+  var selV=state.v3Venue?venue(state.v3Venue):null;
+  var selCk=selV?vcheck(selV):null;
+  var fb=[];
+  function frow(k,label,val){ fb.push('<div class="v3-fbrow '+k+'"><span class="v3-fbl">'+label+'</span>'+ic(k==='ok'?'check':k==='err'?'cross':k==='warn'?'warn':'dot')+'<span>'+val+'</span></div>'); }
+  frow('ok','活動時段', dSel.label+' '+dSel.date+' '+rt(SEL.s,SEL.e));
+  var absent=DATA.members.filter(function(m){ return !coversR(m.avail[SEL.day],SEL.s,SEL.e); });
+  frow(absent.length?'err':'ok','幹部出席', absent.length
+    ? (DATA.members.length-absent.length)+'/'+DATA.members.length+' 人可出席 · '+absent.map(function(m){return m.name;}).join('、')+' 缺席'
+    : DATA.members.length+'/'+DATA.members.length+' 人可完整出席（'+DATA.members.map(function(m){return m.name;}).join('、')+'）');
+  if(!selV) frow('','場地','B1 活動室可行 · 一號館 301 有衝突（待選擇）');
+  else if(selCk.hardOk) frow('ok','場地', selV.name);
+  else frow('err','場地', selV.name+(selCk.ob.length?' · '+selCk.ob.map(function(b){return '與'+b.who+' '+rt(b.start,b.end)+' 重疊';}).join('、'):' · 條件未達'));
+  frow(selV?(selV.equip.audio?'ok':'warn'):'','音響（軟）', !selV?'待場地選擇':(selV.equip.audio?'齊備':'此場地無音響'));
+  var ready=!!(selV && selCk.hardOk);
+  var progress=ready
+    ? '4 項檢查全部通過，<b>可以進入確認步驟</b>'
+    : '已滿足：時段、幹部出席'+(selV&&selV.equip.audio?'、音響':'')+' · 待完成：<b>選擇一間無衝突場地</b>';
+
+  return '<div class="v3"><div class="wrap">'+brand('#0b7a4b')
+    +'<h1>為「'+a.name+'」安排排程</h1>'
+    +'<p class="sub">'+a.headcount+' 人 · '+a.hours+' 小時 · 硬性：容量 ≥ '+a.headcount+' / 投影機 / 可搬長桌 · 軟性：音響 · '+a.crewCount+' 位幹部需完整出席</p>'
+    +'<ol class="v3-steps">'
+    +'<li class="v3-step is-done"><span class="v3-step-ic">'+SVG+'<path d="M3 8.5 6.4 12 13 4.5"/></svg></span><div><b>時段</b><span>週六 17:00–20:00</span></div></li>'
+    +'<li class="v3-step is-active"><span class="v3-step-n">2</span><div><b>場地</b><span>二選一</span></div></li>'
+    +'<li class="v3-step is-todo"><span class="v3-step-n">3</span><div><b>確認</b><span>彙總並發佈</span></div></li>'
+    +'</ol>'
+    +'<div class="v3-main"><div class="v3-venues">'
+    +'<h2>選擇場地 <span class="v3-note">（依「週六 17:00–20:00」即時檢查）</span></h2>'
+    +vcards+'</div>'
+    +'<aside class="v3-side">'
+    +'<section style="animation-delay:140ms"><h2>即時約束檢查</h2>'+fb.join('')
+    +'<p class="v3-progress">'+progress+'</p>'
+    +'<button class="v3-next" data-action="v3-next"'+(ready?'':' disabled')+'>下一步：確認</button>'
+    +'<p class="v3-hint">'+(ready?'點選後進入確認步驟':'先選擇無衝突的場地，按鈕才會啟用')+'</p></section>'
+    +'<section class="v3-preview" style="animation-delay:200ms"><h2>確認步驟預覽 <span class="v3-note">（下一步）</span></h2>'
+    +'<div class="row"><span>時段</span><b>週六 11/07 17:00–20:00</b></div>'
+    +'<div class="row"><span>場地</span><b>'+(selV?selV.name:'待選擇')+'</b></div>'
+    +'<div class="row"><span>通知</span><b>'+a.crewCount+' 位幹部（'+DATA.members.map(function(m){return m.name;}).join('、')+'）</b></div>'
+    +'<label for="v3-note-input">場地備註（選填）</label>'
+    +'<input id="v3-note-input" type="text" value="'+state.v3Note+'" />'
+    +'</section></aside></div></div></div>';
+}
+var root=document.getElementById('variant-root');
+var labelEl=document.querySelector('[data-variant-label]');
+var RENDER={'1':renderV1,'2':renderV2,'3':renderV3};
+
+function render(){
+  root.innerHTML=RENDER[state.variant]();
+  document.body.dataset.variant=state.variant;
+  labelEl.textContent=state.variant+' ('+VNAME[state.variant]+')';
+  try{ history.replaceState(null,'','?variant='+state.variant); }catch(e){}
+  window.scrollTo(0,0);
+}
+function setVariant(k){
+  if(ORDER.indexOf(k)<0) k='1';
+  state.variant=k;
+  render();
+}
+function stepVariant(d){
+  var i=ORDER.indexOf(state.variant);
+  setVariant(ORDER[(i+d+ORDER.length)%ORDER.length]);
+}
+document.querySelector('[data-variant-prev]').addEventListener('click',function(){ stepVariant(-1); });
+document.querySelector('[data-variant-next]').addEventListener('click',function(){ stepVariant(1); });
+document.addEventListener('keydown',function(e){
+  if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
+  var el=document.activeElement;
+  if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.isContentEditable)) return;
+  e.preventDefault();
+  stepVariant(e.key==='ArrowLeft'?-1:1);
+});
+
+var toastTimer;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ t.classList.remove('show'); },2600);
+}
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-action]');
+  if(!b || b.disabled) return;
+  var a=b.dataset.action;
+  if(a==='v1-focus'){
+    state.v1Focus=(state.v1Focus===b.dataset.id)?null:b.dataset.id;
+    render();
+  }else if(a==='v2-accept'){
+    state.v2Accepted=b.dataset.id;
+    render();
+    toast('已採用候選 '+b.dataset.id+'（原型存根）');
+  }else if(a==='v2-adjust'){
+    toast('微調時段為正式版功能（原型存根）');
+  }else if(a==='v3-venue'){
+    state.v3Venue=(state.v3Venue===b.dataset.id)?null:b.dataset.id;
+    render();
+  }else if(a==='v3-next'){
+    toast('確認並發佈（原型存根）— 正式版會通知 5 位幹部');
+  }
+});
+document.addEventListener('keydown',function(e){
+  var el=document.activeElement;
+  if((e.key==='Enter' || e.key===' ') && el && el.dataset && el.dataset.action){
+    e.preventDefault();
+    el.click();
+  }
+});
+document.addEventListener('input',function(e){
+  if(e.target && e.target.id==='v3-note-input') state.v3Note=e.target.value;
+});
+
+var init=new URLSearchParams(location.search).get('variant');
+setVariant(ORDER.indexOf(init)>=0?init:'1');
+</script>
+</body>
+</html>
