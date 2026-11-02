@@ -1,0 +1,668 @@
+<!doctype html>
+<!-- NetGraph 設計問題：「知識圖譜網路故障定位＋NOC 決策」的核心介面應該長什麼樣子？三個結構迥異的變體以 ?variant=1..3 切換：1 拓撲故障圖（運維監控牆地圖）、2 警報日誌關聯（維運終端機）、3 事件工單工作台（亮色 ticketing 工具）。 -->
+<!--
+  設計系統（一次性原型）
+  共用 token：4px 間距階層 --s1..--s7；字級 --t-cap/sm/md/lg/xl/code；圓角 --r-s/m/l；陰影 --sh-1。
+  三個變體各是一個獨立「視覺世界」，世界色票以 .n1/.n2/.n3 範圍內的 CSS 變數宣告：
+  n1 拓撲故障圖＝運維監控牆（深石油藍底、地圖網格、正常綠/告警琥珀/故障紅/受影響琥珀虛線、1px 框線）
+  n2 警報日誌關聯＝維運終端機（近黑底、螢光綠主色、終端視窗框、資料區塊全域 monospace）
+  n3 事件工單工作台＝亮色 ticketing（淺麻綠底、白卡片、深松綠主色、1px 框線）
+  每個世界只宣告一層高程（三者皆用 1px 框線），不混用。
+-->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetGraph 一次性原型（第一版）</title>
+<style>
+/* ============ 0. 重置與共用 token ============ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+:root{
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --r-s:8px;--r-m:12px;--r-l:16px;
+  --t-cap:11px;--t-sm:12px;--t-md:14px;--t-lg:16px;--t-xl:22px;--t-code:13px;
+  --sh-1:0 1px 2px rgba(15,23,42,.06),0 2px 8px rgba(15,23,42,.09);
+  --dur:160ms;
+}
+body{font-family:var(--sans);font-size:var(--t-md);background:#0d1114}
+h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
+button{font:inherit;cursor:pointer}
+img,svg{vertical-align:middle}
+
+/* ============ 1. 共用元件：按鈕 / 卡片 / 標籤 ============ */
+.btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:9px 16px;font-size:var(--t-sm);font-weight:700;line-height:1.2;transition:background var(--dur),transform var(--dur),box-shadow var(--dur)}
+.btn:active{transform:translateY(1px)}
+.card-title{font-size:var(--t-lg);font-weight:800;letter-spacing:-0.01em}
+.syn-tag{font-size:var(--t-cap);border-radius:999px;padding:2px 8px;white-space:nowrap}
+
+/* ============ 2. 原型共用外框（非頁面設計的一部分） ============ */
+.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#15181d;color:#f4f6f8;font-size:var(--t-sm);font-weight:600;padding:10px var(--s4)}
+.proto-banner::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;background:#ffd21f}
+.variant{min-height:100svh;padding-bottom:88px}
+.variant[hidden]{display:none}
+.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:var(--s2);background:#0c0e12;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background var(--dur)}
+.vs-btn:hover{background:rgba(255,255,255,.26)}
+.vs-label{font-size:var(--t-sm);font-weight:700;min-width:132px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ============ 3. 變體 1：拓撲故障圖（運維監控牆 · 黑暗地圖） ============ */
+.n1{
+  --n1-bg:#0a141b;--n1-panel:#101e28;--n1-panel2:#0c1822;
+  --n1-line:#1e3342;--n1-line2:#2c4c63;
+  --n1-text:#dcebf4;--n1-dim:#7fa2b4;
+  --n1-ok:#3fd07f;--n1-warn:#ffb020;--n1-fault:#ff5c5c;--n1-accent:#3ec8e8;
+  background:var(--n1-bg);color:var(--n1-text);color-scheme:dark;
+}
+.n1 :focus-visible{outline:2px solid var(--n1-accent);outline-offset:2px}
+.n1 ::selection{background:rgba(62,200,232,.3)}
+.n1-shell{max-width:1240px;margin:0 auto;padding:0 var(--s5)}
+.n1-topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s4) 0 var(--s5)}
+.n1-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg);color:var(--n1-accent)}
+.n1-crumb{color:var(--n1-dim);font-size:var(--t-sm)}
+.n1-crumb b{color:var(--n1-text);font-weight:700}
+.n1-crumb .n1-inc{color:var(--n1-fault);font-weight:700;font-family:var(--mono)}
+.n1-actions{margin-left:auto;display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+.n1-clock{font-family:var(--mono);font-size:var(--t-sm);color:var(--n1-dim);font-variant-numeric:tabular-nums}
+.n1 .syn-tag{color:var(--n1-dim);border:1px solid var(--n1-line)}
+.n1 .btn-primary{background:var(--n1-accent);color:#04222b}
+.n1 .btn-primary:hover{background:#5cd6ee}
+.n1-card{background:var(--n1-panel);border:1px solid var(--n1-line);border-radius:var(--r-l);padding:var(--s4)}
+.n1-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:var(--s5);align-items:start}
+.n1-grid>*{min-width:0}
+.n1-side{display:grid;gap:var(--s4)}
+.n1-sub{font-size:var(--t-md);font-weight:800;margin:var(--s4) 0 var(--s2)}
+.n1-sub:first-child{margin-top:0}
+.n1-map__head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
+.n1-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--t-sm);color:var(--n1-dim)}
+.n1-lg{display:inline-flex;align-items:center;gap:6px}
+.n1-lg__d{flex:none;width:9px;height:9px;border-radius:50%}
+.n1-lg__d--ok{background:var(--n1-ok)}
+.n1-lg__d--wa{background:var(--n1-warn)}
+.n1-lg__d--ft{background:var(--n1-fault)}
+.n1-lg__d--af{background:transparent;border:1.5px dashed var(--n1-warn)}
+.n1-mapwrap{overflow-x:auto;border:1px solid var(--n1-line);border-radius:var(--r-m);
+  background-image:linear-gradient(rgba(62,200,232,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(62,200,232,.045) 1px,transparent 1px);
+  background-size:34px 34px}
+.n1-topo{display:block;width:100%;min-width:680px;height:auto;margin:0 auto}
+.n1-topo .lk line{stroke:var(--n1-line2);stroke-width:1.5}
+.n1-topo .lk--ft line{stroke:var(--n1-fault);stroke-width:2}
+.n1-topo .lk--path line{stroke:var(--n1-warn);stroke-width:1.8;opacity:.85}
+.nd__box{fill:var(--n1-panel);stroke:var(--n1-line);stroke-width:1.2}
+.nd--ok .nd__dot{fill:var(--n1-ok)}
+.nd--wa .nd__box{stroke:var(--n1-warn);fill:rgba(255,176,32,.08)}
+.nd--wa .nd__dot{fill:var(--n1-warn)}
+.nd--wa .nd__role{fill:var(--n1-warn)}
+.nd--ft .nd__box{stroke:var(--n1-fault);stroke-width:1.8;fill:rgba(255,92,92,.12)}
+.nd--ft .nd__dot{fill:var(--n1-fault)}
+.nd--ft .nd__id{fill:#ffd7d7}
+.nd--ft .nd__role{fill:var(--n1-fault)}
+.nd--af .nd__box{stroke:var(--n1-warn);stroke-dasharray:4 3;fill:rgba(255,176,32,.05)}
+.nd--af .nd__dot{fill:var(--n1-warn);opacity:.85}
+.nd__id{font-family:var(--mono);font-size:11px;font-weight:700;fill:var(--n1-text)}
+.nd__role{font-size:11px;fill:var(--n1-dim)}
+.n1-fl{font-size:12px;font-weight:700;fill:var(--n1-fault)}
+.n1-halo{stroke:var(--n1-fault);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:n1-pulse 1.8s ease-out infinite}
+@keyframes n1-pulse{0%{transform:scale(.55);opacity:.7}75%{transform:scale(1.5);opacity:0}100%{transform:scale(1.5);opacity:0}}
+.n1-map__note{color:var(--n1-dim);font-size:var(--t-cap);margin-top:var(--s3);font-family:var(--mono)}
+.n1-statechip{font-size:var(--t-cap);font-weight:800;letter-spacing:.06em;padding:3px 9px;border-radius:6px}
+.n1-statechip--ft{background:rgba(255,92,92,.14);color:var(--n1-fault);border:1px solid rgba(255,92,92,.4)}
+.n1-fault__head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.n1-fault__meta{color:var(--n1-dim);font-size:var(--t-sm);margin:var(--s2) 0 var(--s3);font-family:var(--mono)}
+.n1-metrics{list-style:none;padding:0;display:grid;gap:10px}
+.n1-metrics li{display:grid;grid-template-columns:minmax(88px,auto) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:var(--t-sm)}
+.n1-m__k{color:var(--n1-dim)}
+.n1-bar{height:6px;border-radius:999px;background:var(--n1-panel2);box-shadow:inset 0 0 0 1px var(--n1-line);overflow:hidden}
+.n1-bar i{display:block;height:100%;border-radius:999px;background:var(--n1-fault)}
+.n1-bar--wa i{background:var(--n1-warn)}
+.n1-m__v{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;color:var(--n1-fault);white-space:nowrap}
+.n1-m__v--wa{color:var(--n1-warn)}
+.n1-fault__note{color:var(--n1-dim);font-size:var(--t-sm);line-height:1.7;margin-top:var(--s3)}
+.n1-fault__note b{color:var(--n1-warn);font-weight:700}
+.n1-svcs{list-style:none;padding:0;display:grid;gap:8px}
+.n1-svcs li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);padding:10px 12px;border:1px solid var(--n1-line);border-radius:var(--r-m);background:var(--n1-panel2);font-size:var(--t-sm)}
+.n1-svcs span{color:var(--n1-warn);white-space:nowrap;font-variant-numeric:tabular-nums}
+.n1-docs{list-style:none;padding:0;display:grid;gap:8px}
+.n1-doc{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--n1-line);border-radius:var(--r-m);color:var(--n1-text);text-decoration:none;font-size:var(--t-sm);transition:background var(--dur),border-color var(--dur)}
+.n1-doc:hover{background:var(--n1-panel2);border-color:var(--n1-line2)}
+.n1-doc__id{font-family:var(--mono);font-size:var(--t-cap);color:var(--n1-accent);background:rgba(62,200,232,.1);padding:2px 7px;border-radius:6px;white-space:nowrap}
+.n1-foot{color:var(--n1-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.7}
+
+/* ============ 4. 變體 2：警報日誌關聯（維運終端機） ============ */
+.n2{
+  --n2-bg:#050807;--n2-panel:#0a100d;--n2-panel2:#070c0a;
+  --n2-line:#1b2b23;--n2-text:#c9e8d6;--n2-dim:#64806f;
+  --n2-crit:#ff5c5c;--n2-warn:#ffb020;--n2-info:#46d685;--n2-accent:#5cf29a;
+  background:var(--n2-bg);color:var(--n2-text);color-scheme:dark;
+}
+.n2 :focus-visible{outline:2px solid var(--n2-accent);outline-offset:2px}
+.n2 ::selection{background:rgba(92,242,154,.28)}
+.n2-shell{max-width:1160px;margin:0 auto;padding:var(--s5) var(--s4) 0}
+.n2-term{background:var(--n2-panel);border:1px solid var(--n2-line);border-radius:var(--r-l);overflow:hidden}
+.n2-term__bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--n2-panel2);border-bottom:1px solid var(--n2-line);font-family:var(--mono);font-size:var(--t-sm);color:var(--n2-dim)}
+.n2-dotdot{flex:none;width:10px;height:10px;border-radius:50%}
+.n2-dotdot--r{background:#e0605a}.n2-dotdot--y{background:#e0a93f}.n2-dotdot--g{background:#4fae6d}
+.n2-term__title{color:var(--n2-text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.n2-tag{margin-left:auto;font-size:var(--t-cap);border:1px solid var(--n2-line);color:var(--n2-dim);border-radius:999px;padding:2px 8px;font-family:var(--sans);white-space:nowrap}
+.n2-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
+.n2-stream{border-right:1px solid var(--n2-line);min-width:0}
+.n2-stream__head{display:flex;justify-content:space-between;gap:var(--s2);flex-wrap:wrap;padding:var(--s3) var(--s4);border-bottom:1px solid var(--n2-line);font-family:var(--mono);font-size:var(--t-sm);color:var(--n2-dim)}
+.n2-evs{list-style:none;margin:0;padding:0}
+.n2-ev{display:flex;flex-wrap:wrap;column-gap:8px;row-gap:2px;padding:9px 14px;border-bottom:1px solid var(--n2-line);font-family:var(--mono);font-size:var(--t-sm);transition:background var(--dur)}
+.n2-ev:last-child{border-bottom:0}
+.n2-ev:hover{background:rgba(92,242,154,.04)}
+.n2-ev__t{color:var(--n2-dim);font-variant-numeric:tabular-nums}
+.n2-sev{font-size:10px;font-weight:700;letter-spacing:.08em;padding:2px 6px;border-radius:4px;line-height:1.5}
+.sev--crit{background:rgba(255,92,92,.16);color:var(--n2-crit)}
+.sev--warn{background:rgba(255,176,32,.14);color:var(--n2-warn)}
+.sev--info{background:rgba(70,214,133,.12);color:var(--n2-info)}
+.n2-ev__src{color:var(--n2-accent);font-weight:700}
+.n2-ev__msg{flex:1 1 100%;line-height:1.6;color:var(--n2-text)}
+.n2-ev--crit{background:rgba(255,92,92,.07)}
+.n2-ev--crit:hover{background:rgba(255,92,92,.1)}
+.n2-ev--crit .n2-ev__msg{color:#ffd9d9;font-weight:700}
+.n2-panelcol{display:grid;gap:var(--s4);padding:var(--s4);align-content:start;align-items:stretch}
+.n2-card{border:1px solid var(--n2-line);border-radius:var(--r-m);padding:var(--s3) var(--s4);background:var(--n2-panel2)}
+.n2-card__t{font-size:var(--t-md);font-weight:800;margin-bottom:var(--s3);font-family:var(--sans)}
+.n2-diag{display:grid;gap:10px}
+.n2-diag dt{font-size:var(--t-cap);color:var(--n2-dim);letter-spacing:.05em;margin-bottom:2px}
+.n2-diag dd{font-size:var(--t-sm);line-height:1.6}
+.n2-diag dd code{font-family:var(--mono);color:var(--n2-accent);font-size:.95em}
+.n2-conf{display:flex;align-items:center;gap:10px;margin-top:var(--s3)}
+.n2-conf > span{font-size:var(--t-sm);color:var(--n2-dim);white-space:nowrap}
+.n2-conf__bar{flex:1;height:6px;border-radius:999px;background:#0e1712;box-shadow:inset 0 0 0 1px var(--n2-line);overflow:hidden}
+.n2-conf__bar i{display:block;height:100%;border-radius:999px;background:var(--n2-accent)}
+.n2-conf__v{font-family:var(--mono);font-weight:700;color:var(--n2-accent);font-variant-numeric:tabular-nums}
+.n2-note{color:var(--n2-dim);font-size:var(--t-cap);margin-top:var(--s3);line-height:1.7}
+.n2-logs{margin:0;background:#050a07;border:1px solid var(--n2-line);border-radius:var(--r-s);padding:var(--s3);font-family:var(--mono);font-size:var(--t-code);line-height:1.9;overflow-x:auto;color:var(--n2-text)}
+.n2-lt{color:var(--n2-dim)}
+.n2-lc{color:var(--n2-warn)}
+.n2-acts{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.n2-acts li{display:flex;align-items:flex-start;gap:10px}
+.n2-acts p{flex:1;font-size:var(--t-sm);line-height:1.6}
+.n2-sop{flex:none;font-family:var(--mono);font-size:var(--t-cap);color:var(--n2-accent);background:rgba(92,242,154,.08);border:1px solid var(--n2-line);padding:3px 7px;border-radius:6px;white-space:nowrap}
+.n2-acts .btn{flex:none;margin-top:2px}
+.n2 .btn-ghost{background:transparent;color:var(--n2-accent);box-shadow:inset 0 0 0 1px var(--n2-line)}
+.n2 .btn-ghost:hover{box-shadow:inset 0 0 0 1px var(--n2-accent);background:rgba(92,242,154,.06)}
+.n2-foot{color:var(--n2-dim);font-size:var(--t-cap);margin-top:var(--s4);line-height:1.7}
+
+/* ============ 5. 變體 3：事件工單工作台（亮色 ticketing） ============ */
+.n3{
+  --n3-bg:#eef1ec;--n3-panel:#fbfcf9;--n3-ink:#232f2b;--n3-dim:#64706a;
+  --n3-line:#d8ddd2;--n3-soft:#f5f7f1;--n3-accent:#0d7a68;
+  --n3-ok:#178a50;--n3-warn:#b07507;--n3-bad:#c23b3b;
+  background:var(--n3-bg);color:var(--n3-ink);
+}
+.n3 :focus-visible{outline:2px solid var(--n3-accent);outline-offset:2px}
+.n3 ::selection{background:rgba(13,122,104,.22)}
+.n3-shell{max-width:1160px;margin:0 auto;padding:var(--s4) var(--s5) 0}
+.n3-topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)}
+.n3-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg);color:var(--n3-accent)}
+.n3-brand .n3-sub{font-size:var(--t-cap);color:var(--n3-dim);border:1px solid var(--n3-line);background:var(--n3-panel);padding:2px 8px;border-radius:999px;font-weight:600}
+.n3-user{margin-left:auto;color:var(--n3-dim);font-size:var(--t-sm)}
+.n3 .syn-tag{color:var(--n3-dim);border:1px solid var(--n3-line);background:var(--n3-panel)}
+.n3-card{background:var(--n3-panel);border:1px solid var(--n3-line);border-radius:var(--r-l);padding:var(--s4)}
+.n3-ticket__id{font-family:var(--mono);font-size:var(--t-sm);color:var(--n3-accent);font-weight:700;letter-spacing:.04em}
+.n3-ticket__t{font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em;margin:4px 0 var(--s3)}
+.n3-chips{display:flex;flex-wrap:wrap;gap:8px}
+.n3-chip{font-size:var(--t-sm);font-weight:600;padding:4px 12px;border-radius:999px;background:var(--n3-soft);color:var(--n3-dim);border:1px solid var(--n3-line);font-variant-numeric:tabular-nums}
+.n3-chip--bad{background:rgba(194,59,59,.08);border-color:rgba(194,59,59,.35);color:var(--n3-bad);font-weight:700}
+.n3-chip--run{background:rgba(13,122,104,.08);border-color:rgba(13,122,104,.35);color:var(--n3-accent);font-weight:700}
+.n3-tl{position:relative;display:flex;margin-top:var(--s4);padding-top:var(--s2)}
+.n3-tl::before{content:"";position:absolute;top:calc(var(--s2) + 5px);left:12.5%;right:12.5%;height:2px;background:var(--n3-line)}
+.n3-tl__step{flex:1;display:grid;justify-items:center;gap:5px}
+.n3-tl__dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--n3-line);background:var(--n3-panel)}
+.n3-tl__step b{font-size:var(--t-sm);font-weight:700}
+.n3-tl__step span{font-size:var(--t-cap);color:var(--n3-dim);font-variant-numeric:tabular-nums}
+.n3-tl__step.is-done .n3-tl__dot{background:var(--n3-accent);border-color:var(--n3-accent)}
+.n3-tl__step.is-now .n3-tl__dot{border-color:var(--n3-accent);box-shadow:0 0 0 4px rgba(13,122,104,.18)}
+.n3-tl__step.is-now b{color:var(--n3-accent)}
+.n3-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--s4);align-items:start;margin-top:var(--s4)}
+.n3-main{display:grid;gap:var(--s4);min-width:0}
+.n3-main>*,.n3-rail>*{min-width:0}
+.n3-rail{display:grid;gap:var(--s4)}
+.n3-h{font-size:var(--t-lg);font-weight:800;margin-bottom:var(--s3)}
+.n3-body{font-size:var(--t-sm);line-height:1.8}
+.n3-body b{font-weight:700}
+.n3-conf{display:inline-flex;align-items:center;gap:8px;margin-top:var(--s3);font-size:var(--t-sm);font-weight:700;color:var(--n3-accent);font-variant-numeric:tabular-nums}
+.n3-conf i{width:8px;height:8px;border-radius:50%;background:var(--n3-accent);flex:none}
+.n3-tblwrap{overflow-x:auto;margin-top:var(--s2)}
+.n3-tbl{width:100%;border-collapse:collapse;font-size:var(--t-sm);min-width:380px}
+.n3-tbl th{text-align:left;font-size:var(--t-cap);color:var(--n3-dim);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--n3-line)}
+.n3-tbl td{padding:9px 10px;border-bottom:1px solid var(--n3-line)}
+.n3-tbl tr:last-child td{border-bottom:0}
+.n3-tbl tbody tr{transition:background var(--dur)}
+.n3-tbl tbody tr:hover{background:var(--n3-soft)}
+.num{font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--n3-dim);white-space:nowrap}
+.n3-st{font-size:var(--t-sm);font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.st--bad{background:rgba(194,59,59,.1);color:var(--n3-bad)}
+.st--warn{background:rgba(176,117,7,.12);color:var(--n3-warn)}
+.st--ok{background:rgba(23,138,80,.12);color:var(--n3-ok)}
+.n3-sops{list-style:none;margin:var(--s2) 0 0;padding:0;display:grid;gap:8px}
+.n3-sop{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--n3-line);border-radius:var(--r-m);font-size:var(--t-sm);transition:background var(--dur),border-color var(--dur)}
+.n3-sop:hover{background:var(--n3-soft);border-color:#c3cabd}
+.n3-sop__id{font-family:var(--mono);font-size:var(--t-cap);color:var(--n3-accent);background:rgba(13,122,104,.08);padding:2px 7px;border-radius:6px;white-space:nowrap}
+.n3-sop .btn{margin-left:auto}
+.n3-mttr{display:grid;gap:12px}
+.n3-m__row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;font-size:var(--t-sm)}
+.n3-m__row > span{color:var(--n3-dim);white-space:nowrap}
+.n3-m__bar{height:8px;border-radius:999px;background:var(--n3-soft);box-shadow:inset 0 0 0 1px var(--n3-line);overflow:hidden}
+.n3-m__bar i{display:block;height:100%;border-radius:999px;background:#a9bfb2}
+.n3-m__row.is-now .n3-m__bar i{background:var(--n3-accent)}
+.n3-m__row b{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.n3-note{color:var(--n3-dim);font-size:var(--t-sm);margin-top:var(--s3);line-height:1.7}
+.n3-actions{display:grid;gap:8px}
+.n3 .btn-primary{background:var(--n3-accent);color:#fff}
+.n3 .btn-primary:hover{background:#0f8f7a}
+.n3 .btn-ghost{background:transparent;color:var(--n3-ink);box-shadow:inset 0 0 0 1px var(--n3-line)}
+.n3 .btn-ghost:hover{box-shadow:inset 0 0 0 1px var(--n3-accent);color:var(--n3-accent)}
+.n3-foot{color:var(--n3-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.7}
+
+/* ============ 6. 響應式 ============ */
+@media (max-width:960px){
+  .n1-grid,.n2-grid{grid-template-columns:1fr}
+  .n2-stream{border-right:0;border-bottom:1px solid var(--n2-line)}
+  .n3-grid{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  .n1-shell,.n3-shell{padding-left:var(--s4);padding-right:var(--s4)}
+  .n1-actions{width:100%;margin-left:0}
+}
+@media (max-width:640px){
+  .n3-tl{flex-direction:column;padding-top:0}
+  .n3-tl::before{left:5px;right:auto;top:8px;bottom:8px;width:2px;height:auto}
+  .n3-tl__step{flex:none;grid-template-columns:auto 1fr;justify-items:start;justify-content:start;gap:3px 10px;padding:7px 0;text-align:left}
+  .n3-tl__dot{grid-row:1/3;align-self:center}
+}
+@media (max-width:390px){
+  .n2-shell{padding-left:var(--s3);padding-right:var(--s3)}
+  .n1-shell,.n3-shell{padding-left:var(--s3);padding-right:var(--s3)}
+}
+</style>
+</head>
+<body>
+
+<div class="proto-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
+
+<main>
+<!-- ================= 變體 1：拓撲故障圖（運維監控牆 · 黑暗地圖） ================= -->
+<section class="variant n1" data-variant="1">
+  <div class="n1-shell">
+    <header class="n1-topbar">
+      <div class="n1-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="5" r="2.4" fill="currentColor"/><circle cx="5" cy="18" r="2.4" fill="currentColor" opacity=".55"/><circle cx="19" cy="18" r="2.4" fill="currentColor" opacity=".55"/><path d="M11 7l-5 9M13 7l5 9M7.5 18h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        NetGraph
+      </div>
+      <span class="n1-crumb">拓撲檢視 · 校園網 · <b>1 件進行中事件</b> <span class="n1-inc">INC-2026-041</span></span>
+      <div class="n1-actions">
+        <span class="n1-clock">10:56:04</span>
+        <span class="syn-tag">合成資料</span>
+        <button class="btn btn-primary">開啟事件工單</button>
+      </div>
+    </header>
+
+    <div class="n1-grid">
+      <article class="n1-card n1-map">
+        <div class="n1-map__head">
+          <h2 class="card-title">B2 棟 · 即時拓撲</h2>
+          <div class="n1-legend" aria-label="圖例">
+            <span class="n1-lg"><i class="n1-lg__d n1-lg__d--ok"></i>正常</span>
+            <span class="n1-lg"><i class="n1-lg__d n1-lg__d--wa"></i>告警</span>
+            <span class="n1-lg"><i class="n1-lg__d n1-lg__d--ft"></i>故障</span>
+            <span class="n1-lg"><i class="n1-lg__d n1-lg__d--af"></i>受影響</span>
+          </div>
+        </div>
+        <div class="n1-mapwrap">
+          <svg class="n1-topo" viewBox="0 0 920 470" role="img" aria-label="B2 棟網路拓撲：DS-B2-01 故障，下游 5 台裝置受影響">
+            <g class="lk">
+              <line x1="460" y1="56" x2="150" y2="190"/>
+              <line x1="460" y1="56" x2="770" y2="190"/>
+              <line x1="150" y1="190" x2="150" y2="320"/>
+              <line x1="770" y1="190" x2="770" y2="320"/>
+            </g>
+            <line class="lk lk--ft" x1="460" y1="56" x2="460" y2="190"/>
+            <g class="lk lk--path">
+              <line x1="460" y1="190" x2="330" y2="320"/>
+              <line x1="460" y1="190" x2="590" y2="320"/>
+              <line x1="330" y1="320" x2="255" y2="430"/>
+              <line x1="330" y1="320" x2="405" y2="430"/>
+              <line x1="590" y1="320" x2="590" y2="430"/>
+            </g>
+            <circle class="n1-halo" cx="460" cy="190" r="46" fill="none"/>
+            <text class="n1-fl" x="460" y="150" text-anchor="middle">故障 · 風扇 2/2 失效</text>
+
+            <g class="nd nd--ok"><title>CS-CORE-01 核心交換器 · 正常</title>
+              <rect class="nd__box" x="394" y="34" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="408" cy="50" r="4"/><text class="nd__id" x="422" y="55">CS-CORE-01</text><text class="nd__role" x="422" y="71">核心交換器</text>
+            </g>
+            <g class="nd nd--wa"><title>DS-B1-01 B1 樓層交換器 · 告警（機箱溫度 65°C 偏高）</title>
+              <rect class="nd__box" x="84" y="168" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="98" cy="184" r="4"/><text class="nd__id" x="112" y="189">DS-B1-01</text><text class="nd__role" x="112" y="205">B1 樓層交換器</text>
+            </g>
+            <g class="nd nd--ft"><title>DS-B2-01 B2 樓層交換器 · 故障（風扇失效、CPU 97%、端口錯誤突增）</title>
+              <rect class="nd__box" x="394" y="168" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="408" cy="184" r="4"/><text class="nd__id" x="422" y="189">DS-B2-01</text><text class="nd__role" x="422" y="205">B2 樓層交換器</text>
+            </g>
+            <g class="nd nd--ok"><title>DS-B3-01 B3 樓層交換器 · 正常</title>
+              <rect class="nd__box" x="704" y="168" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="718" cy="184" r="4"/><text class="nd__id" x="732" y="189">DS-B3-01</text><text class="nd__role" x="732" y="205">B3 樓層交換器</text>
+            </g>
+            <g class="nd nd--af"><title>AS-B2-01 B2 接入交換器 · 受影響（上連抖動）</title>
+              <rect class="nd__box" x="264" y="298" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="278" cy="314" r="4"/><text class="nd__id" x="292" y="319">AS-B2-01</text><text class="nd__role" x="292" y="335">B2 接入 01</text>
+            </g>
+            <g class="nd nd--af"><title>AS-B2-02 B2 接入交換器 · 受影響（端口錯誤上升）</title>
+              <rect class="nd__box" x="524" y="298" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="538" cy="314" r="4"/><text class="nd__id" x="552" y="319">AS-B2-02</text><text class="nd__role" x="552" y="335">B2 接入 02</text>
+            </g>
+            <g class="nd nd--af"><title>AP-B2F-01 無線 AP · 受影響（37 位使用者斷線）</title>
+              <rect class="nd__box" x="189" y="408" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="203" cy="424" r="4"/><text class="nd__id" x="217" y="429">AP-B2F-01</text><text class="nd__role" x="217" y="445">無線 AP-01</text>
+            </g>
+            <g class="nd nd--af"><title>AP-B2F-02 無線 AP · 受影響（離線）</title>
+              <rect class="nd__box" x="339" y="408" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="353" cy="424" r="4"/><text class="nd__id" x="367" y="429">AP-B2F-02</text><text class="nd__role" x="367" y="445">無線 AP-02</text>
+            </g>
+            <g class="nd nd--af"><title>SRV-DB-01 資料庫伺服器 · 受影響（延遲 480ms）</title>
+              <rect class="nd__box" x="524" y="408" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="538" cy="424" r="4"/><text class="nd__id" x="552" y="429">SRV-DB-01</text><text class="nd__role" x="552" y="445">資料庫伺服器</text>
+            </g>
+            <g class="nd nd--ok"><title>SRV-WEB-01 Web 伺服器 · 正常</title>
+              <rect class="nd__box" x="84" y="298" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="98" cy="314" r="4"/><text class="nd__id" x="112" y="319">SRV-WEB-01</text><text class="nd__role" x="112" y="335">Web 伺服器</text>
+            </g>
+            <g class="nd nd--ok"><title>SRV-MAIL-01 郵件伺服器 · 正常</title>
+              <rect class="nd__box" x="704" y="298" width="132" height="44" rx="10"/>
+              <circle class="nd__dot" cx="718" cy="314" r="4"/><text class="nd__id" x="732" y="319">SRV-MAIL-01</text><text class="nd__role" x="732" y="335">郵件伺服器</text>
+            </g>
+          </svg>
+        </div>
+        <p class="n1-map__note">最後更新 10:56:04 · SNMP 輪詢 5s · 資料來源：Containerlab 模擬網路</p>
+      </article>
+
+      <div class="n1-side">
+        <article class="n1-card">
+          <div class="n1-fault__head">
+            <span class="n1-statechip n1-statechip--ft">故障</span>
+            <h2 class="card-title">DS-B2-01 · B2 樓層交換器</h2>
+          </div>
+          <p class="n1-fault__meta">啟用 2023-08 · 韌體 28.3.5 · 管理位址 10.10.20.2</p>
+          <h3 class="n1-sub">SNMP 即時指標（10:56）</h3>
+          <ul class="n1-metrics">
+            <li><span class="n1-m__k">CPU 使用率</span><div class="n1-bar" role="img" aria-label="CPU 使用率 97%"><i style="width:97%"></i></div><span class="n1-m__v">97%</span></li>
+            <li><span class="n1-m__k">機箱溫度</span><div class="n1-bar" role="img" aria-label="機箱溫度 71 度"><i style="width:89%"></i></div><span class="n1-m__v">71°C</span></li>
+            <li><span class="n1-m__k">端口 Gi0/24 誤幀</span><div class="n1-bar n1-bar--wa" role="img" aria-label="每分鐘 1284 個誤幀"><i style="width:72%"></i></div><span class="n1-m__v n1-m__v--wa">1,284 / 分</span></li>
+          </ul>
+          <p class="n1-fault__note">風扇 2/2 狀態 <b>FAIL（10:41:42）</b>，溫升與 CPU 同步上升，與知識圖譜中「散熱失效 → 降頻」簽名相符。</p>
+        </article>
+
+        <article class="n1-card">
+          <h3 class="n1-sub" style="margin-top:0">受影響服務（3）</h3>
+          <ul class="n1-svcs">
+            <li><b>B2 樓層無線網路</b><span>132 人 · AP 斷線</span></li>
+            <li><b>B2 樓層 IP 電話</b><span>48 支 · 語音品質下降</span></li>
+            <li><b>資料庫伺服器上連</b><span>3 套系統 · 延遲 480ms</span></li>
+          </ul>
+        </article>
+
+        <article class="n1-card">
+          <h3 class="n1-sub" style="margin-top:0">相關處置文件</h3>
+          <ul class="n1-docs">
+            <li><a class="n1-doc" href="#sop014"><span class="n1-doc__id">SOP-NET-014</span>交換器風扇與高溫處置</a></li>
+            <li><a class="n1-doc" href="#sop021"><span class="n1-doc__id">SOP-NET-021</span>B2 樓層雙路徑流量切換</a></li>
+            <li><a class="n1-doc" href="#sop003"><span class="n1-doc__id">SOP-NOC-003</span>二级提升（L2 升級）流程</a></li>
+          </ul>
+        </article>
+      </div>
+    </div>
+    <p class="n1-foot">本頁所有裝置名稱、SNMP 指標、服務清單與文件名稱皆為合成示範資料（Containerlab 模擬網路），僅供選題評審。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 2：警報日誌關聯（維運終端機） ================= -->
+<section class="variant n2" data-variant="2" hidden>
+  <div class="n2-shell">
+    <div class="n2-term">
+      <div class="n2-term__bar">
+        <span class="n2-dotdot n2-dotdot--r" aria-hidden="true"></span>
+        <span class="n2-dotdot n2-dotdot--y" aria-hidden="true"></span>
+        <span class="n2-dotdot n2-dotdot--g" aria-hidden="true"></span>
+        <span class="n2-term__title">NetGraph NOC — netgraph correlate -i INC-2026-041</span>
+        <span class="n2-tag">合成資料</span>
+      </div>
+      <div class="n2-grid">
+        <section class="n2-stream" aria-label="警報與 syslog 事件串流">
+          <div class="n2-stream__head">
+            <span>tail -f /var/log/netgraph/events.log</span>
+            <span>10:41:42 – 10:43:25 · 8 events</span>
+          </div>
+          <ol class="n2-evs">
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:41:42</span><span class="n2-sev sev--warn">WARN</span><span class="n2-ev__src">DS-B2-01</span>
+              <span class="n2-ev__msg">envMon: Fan 2/2 status=FAIL (RPM=0)</span>
+            </li>
+            <li class="n2-ev n2-ev--crit">
+              <span class="n2-ev__t">10:42:07</span><span class="n2-sev sev--crit">CRIT</span><span class="n2-ev__src">DS-B2-01</span>
+              <span class="n2-ev__msg">snmptrap ciscoCPUUtil(1.3.6.1.4.1.9.9.43.1.2.1) = 97% (threshold 90%)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:42:09</span><span class="n2-sev sev--warn">WARN</span><span class="n2-ev__src">DS-B2-01</span>
+              <span class="n2-ev__msg">envMon: 機箱溫度 71.2°C (threshold 70°C)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:42:15</span><span class="n2-sev sev--warn">WARN</span><span class="n2-ev__src">DS-B2-01</span>
+              <span class="n2-ev__msg">port: Gi0/24 CRC errors 1,284 frames (60s, 突增)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:42:31</span><span class="n2-sev sev--info">INFO</span><span class="n2-ev__src">AS-B2-01</span>
+              <span class="n2-ev__msg">link: Gi0/2 up/down flapping x3 (peer DS-B2-01 Gi0/8)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:42:48</span><span class="n2-sev sev--info">INFO</span><span class="n2-ev__src">AP-B2F-01</span>
+              <span class="n2-ev__msg">wlan: 37 clients deassociated (uplink lost)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:43:02</span><span class="n2-sev sev--warn">WARN</span><span class="n2-ev__src">SRV-DB-01</span>
+              <span class="n2-ev__msg">icmp: ping 10.10.20.10 480ms (baseline 2ms)</span>
+            </li>
+            <li class="n2-ev">
+              <span class="n2-ev__t">10:43:25</span><span class="n2-sev sev--info">INFO</span><span class="n2-ev__src">NOC-Console</span>
+              <span class="n2-ev__msg">ticket: INC-2026-041 auto-created (severity: high)</span>
+            </li>
+          </ol>
+        </section>
+        <aside class="n2-panelcol">
+          <article class="n2-card">
+            <h3 class="n2-card__t">根因推斷</h3>
+            <dl class="n2-diag">
+              <div><dt>疑似裝置</dt><dd><code>DS-B2-01</code>（B2 樓層交換器）</dd></div>
+              <div><dt>疑似原因</dt><dd>風扇 2/2 失效 → 機箱高溫 71°C → CPU 降頻、端口錯誤突增</dd></div>
+            </dl>
+            <div class="n2-conf">
+              <span>信心度</span>
+              <div class="n2-conf__bar" role="img" aria-label="信心度 92%"><i style="width:92%"></i></div>
+              <b class="n2-conf__v">92%</b>
+            </div>
+            <p class="n2-note">依據：同裝置 3 筆 syslog 事件＋拓撲下遊影響範圍與 DS-B2-01 下連完全吻合。</p>
+          </article>
+          <article class="n2-card">
+            <h3 class="n2-card__t">關聯日誌摘錄</h3>
+            <pre class="n2-logs"><span class="n2-lt">[10:41:42]</span> DS-B2-01 <span class="n2-lc">%ENV-4-FAN</span>   Fan 2/2 failed, RPM=0
+<span class="n2-lt">[10:42:07]</span> DS-B2-01 <span class="n2-lc">%CPU-3-HIGH</span>  5-min avg 97% (1-min peak 99%)
+<span class="n2-lt">[10:42:15]</span> DS-B2-01 <span class="n2-lc">%PORT-3-ERR</span>  Gi0/24 CRC errors 1284 (60s)</pre>
+          </article>
+          <article class="n2-card">
+            <h3 class="n2-card__t">建議動作</h3>
+            <ol class="n2-acts">
+              <li>
+                <span class="n2-sop">SOP-NET-014</span>
+                <p>交換器風扇與高溫處置：檢查備援風扇；溫度未降即執行降載與流量切換。</p>
+                <button class="btn btn-ghost">開啟文件</button>
+              </li>
+              <li>
+                <span class="n2-sop">SOP-NET-021</span>
+                <p>B2 樓層雙路徑流量切換：將 B2 流量導向 DS-B2-02，確認無黑洞路由。</p>
+                <button class="btn btn-ghost">開啟文件</button>
+              </li>
+              <li>
+                <span class="n2-sop">SOP-NOC-003</span>
+                <p>L2 升級流程：15 分鐘未改善即升級二级維運並通知 DBA。</p>
+                <button class="btn btn-ghost">開啟文件</button>
+              </li>
+            </ol>
+          </article>
+        </aside>
+      </div>
+    </div>
+    <p class="n2-foot">本終端之事件、日誌行、SNMP OID 與文件名稱皆為合成示範資料，時間軸對齊 INC-2026-041 情境，僅供選題評審。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 3：事件工單工作台（亮色 ticketing） ================= -->
+<section class="variant n3" data-variant="3" hidden>
+  <div class="n3-shell">
+    <header class="n3-topbar">
+      <div class="n3-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="5" r="2.4" fill="currentColor"/><circle cx="5" cy="18" r="2.4" fill="currentColor" opacity=".55"/><circle cx="19" cy="18" r="2.4" fill="currentColor" opacity=".55"/><path d="M11 7l-5 9M13 7l5 9M7.5 18h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        NetGraph <span class="n3-sub">工單工作台</span>
+      </div>
+      <span class="n3-user">當班：王（L1）· 10:56</span>
+      <span class="syn-tag">合成資料</span>
+    </header>
+
+    <article class="n3-card n3-ticket">
+      <div class="n3-ticket__id">INC-2026-041</div>
+      <h1 class="n3-ticket__t">DS-B2-01 B2 樓層交換器故障</h1>
+      <div class="n3-chips">
+        <span class="n3-chip n3-chip--bad">嚴重度 高</span>
+        <span class="n3-chip n3-chip--run">狀態 處理中</span>
+        <span class="n3-chip">領域 campus-net/B2</span>
+        <span class="n3-chip">建單 10:42</span>
+      </div>
+      <div class="n3-tl" aria-label="處理時間軸">
+        <div class="n3-tl__step is-done"><i class="n3-tl__dot"></i><b>偵測</b><span>10:42 SNMP trap</span></div>
+        <div class="n3-tl__step is-done"><i class="n3-tl__dot"></i><b>定位</b><span>10:47 圖譜定位</span></div>
+        <div class="n3-tl__step is-now"><i class="n3-tl__dot"></i><b>處置中</b><span>流量切換進行中</span></div>
+        <div class="n3-tl__step"><i class="n3-tl__dot"></i><b>預計恢復</b><span>11:35</span></div>
+      </div>
+    </article>
+
+    <div class="n3-grid">
+      <div class="n3-main">
+        <article class="n3-card">
+          <h2 class="n3-h">根因摘要</h2>
+          <p class="n3-body"><b>DS-B2-01</b> 風扇 2/2 失效（10:41:42）→ 機箱溫升至 <b>71°C</b> → CPU <b>97%</b> 降頻、Gi0/24 端口錯誤突增 → B2 樓層下遊接入交換器、AP 與資料庫伺服器上連受影響。</p>
+          <span class="n3-conf"><i aria-hidden="true"></i>信心度 92% · 證據：3 筆事件＋拓撲影響範圍交叉驗證</span>
+        </article>
+
+        <article class="n3-card">
+          <h2 class="n3-h">受影響服務</h2>
+          <div class="n3-tblwrap">
+            <table class="n3-tbl">
+              <thead><tr><th>服務</th><th>影響人數</th><th>狀態</th></tr></thead>
+              <tbody>
+                <tr><td>B2 樓層無線網路</td><td class="num">132 人</td><td><span class="n3-st st--bad">部分斷線</span></td></tr>
+                <tr><td>B2 樓層 IP 電話</td><td class="num">48 支</td><td><span class="n3-st st--warn">品質下降</span></td></tr>
+                <tr><td>資料庫伺服器上連</td><td class="num">3 套系統</td><td><span class="n3-st st--warn">延遲升高 480ms</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="n3-card">
+          <h2 class="n3-h">相關 SOP 文件</h2>
+          <ul class="n3-sops">
+            <li class="n3-sop"><span class="n3-sop__id">SOP-NET-014</span>交換器風扇與高溫處置<button class="btn btn-ghost">開啟文件</button></li>
+            <li class="n3-sop"><span class="n3-sop__id">SOP-NET-021</span>B2 樓層雙路徑流量切換<button class="btn btn-ghost">開啟文件</button></li>
+            <li class="n3-sop"><span class="n3-sop__id">SOP-NOC-003</span>二级提升（L2 升級）流程<button class="btn btn-ghost">開啟文件</button></li>
+          </ul>
+        </article>
+      </div>
+
+      <aside class="n3-rail">
+        <article class="n3-card">
+          <h2 class="n3-h">MTTR 統計</h2>
+          <div class="n3-mttr">
+            <div class="n3-m__row"><span>本月平均</span><div class="n3-m__bar" role="img" aria-label="本月平均 23 分鐘"><i style="width:100%"></i></div><b>23 分</b></div>
+            <div class="n3-m__row is-now"><span>本單（進行中）</span><div class="n3-m__bar" role="img" aria-label="本單目前 14 分鐘"><i style="width:61%"></i></div><b>14 分</b></div>
+          </div>
+          <p class="n3-note">較上月平均（28 分）快 5 分鐘；圖譜定位節省約 4 分鐘。</p>
+        </article>
+        <article class="n3-card">
+          <h2 class="n3-h">動作</h2>
+          <div class="n3-actions">
+            <button class="btn btn-primary">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8h10M9 3.5L13.5 8 9 12.5"/></svg>
+              派單至二级維運
+            </button>
+            <button class="btn btn-ghost">填寫結案紀錄</button>
+          </div>
+          <p class="n3-note">派單時將附帶根因摘要與受影響服務清單；結案後案例自動歸檔為知識圖譜節點。</p>
+        </article>
+      </aside>
+    </div>
+    <p class="n3-foot">本頁所有工單資訊、統計數值與 SOP 文件皆為合成示範資料，僅供選題評審。</p>
+  </div>
+</section>
+</main>
+
+<div class="variant-switcher" role="toolbar" aria-label="變體切換">
+  <button class="vs-btn" data-variant-prev aria-label="上一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <span class="vs-label" data-variant-label aria-live="polite">1 (拓撲故障圖)</span>
+  <button class="vs-btn" data-variant-next aria-label="下一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+</div>
+
+<script>
+(function () {
+  var NAMES = { '1': '拓撲故障圖', '2': '警報日誌關聯', '3': '事件工單工作台' };
+  var KEYS = ['1', '2', '3'];
+  var label = document.querySelector('[data-variant-label]');
+
+  function current() {
+    var p = new URLSearchParams(location.search);
+    var v = p.get('variant');
+    return KEYS.indexOf(v) >= 0 ? v : '1';
+  }
+
+  function setVariant(v) {
+    document.querySelectorAll('section.variant').forEach(function (s) {
+      s.hidden = s.getAttribute('data-variant') !== v;
+    });
+    label.textContent = v + ' (' + NAMES[v] + ')';
+    try {
+      var p = new URLSearchParams(location.search);
+      p.set('variant', v);
+      history.replaceState(null, '', '?' + p.toString());
+    } catch (err) {
+      try { location.search = '?variant=' + v; } catch (e2) {}
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function cycle(d) {
+    var i = KEYS.indexOf(current());
+    setVariant(KEYS[(i + d + 3) % 3]);
+  }
+
+  document.querySelector('[data-variant-prev]').addEventListener('click', function () { cycle(-1); });
+  document.querySelector('[data-variant-next]').addEventListener('click', function () { cycle(1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var t = document.activeElement;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    cycle(e.key === 'ArrowRight' ? 1 : -1);
+  });
+
+  setVariant(current());
+})();
+</script>
+</body>
+</html>

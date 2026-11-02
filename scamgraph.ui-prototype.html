@@ -1,0 +1,646 @@
+<!doctype html>
+<!-- ScamGraph Family 設計問題：長輩收到可疑訊息時，「看懂風險 → 理解手法 → 找得到人」三件事的介面該怎麼做？三個結構迥異的變體以 ?variant=1..3 切換：1 可疑訊息檢查（LINE 式對話＋風險分析）、2 詐騙手法關係圖（SVG 手法共現圖）、3 一鍵親友求助（大字長輩求助畫面）。 -->
+<!--
+  設計系統（一次性原型）
+  共用 token：4px 間距階層 --s1..--s7；字級 --t-cap/sm/md/lg/xl/code；圓角 --r-s/m/l；陰影 --sh-1。
+  三個變體各是一個獨立「視覺世界」，世界色票以 .v1/.v2/.v3 範圍內的 CSS 變數宣告：
+  v1 可疑訊息檢查＝沉穩聊天室（鼠尾草霧綠底、白卡片、鬆果綠氣泡、磚紅風險色；只用 1px 框線）
+  v2 詐騙手法關係圖＝灰霧圖板（冷霧灰底、點陣畫布、石板墨字、琥珀「本案比中」；只用 1px 框線）
+  v3 一鍵親友求助＝暖米大字屋（暖米底、奶白卡片、陶土橘主色；只用一層暖陰影）
+  語氣原則：冷靜、不驚嚇、每張卡都留有「不確定很正常」的餘地（誤報提醒＋165 專線免责）。
+-->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScamGraph Family 一次性原型（第一版）</title>
+<style>
+/* ============ 0. 重置與共用 token ============ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+:root{
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --r-s:8px;--r-m:12px;--r-l:16px;
+  --t-cap:11px;--t-sm:12px;--t-md:14px;--t-lg:16px;--t-xl:22px;--t-code:13px;
+  --sh-1:0 1px 2px rgba(15,23,42,.06),0 2px 8px rgba(15,23,42,.09);
+  --dur:160ms;
+}
+body{font-family:var(--sans);font-size:var(--t-md);background:#eef1ea}
+h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
+button{font:inherit;cursor:pointer}
+img,svg{vertical-align:middle}
+
+/* ============ 1. 共用元件：按鈕 / 卡片 / 標籤 ============ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:10px 18px;font-size:var(--t-sm);font-weight:700;line-height:1.2;transition:background var(--dur),transform var(--dur),box-shadow var(--dur)}
+.btn:active{transform:translateY(1px)}
+.card-title{font-size:var(--t-lg);font-weight:800;letter-spacing:-0.01em}
+.syn-tag{font-size:var(--t-cap);border-radius:999px;padding:2px 8px;white-space:nowrap}
+
+/* ============ 2. 原型共用外框（非頁面設計的一部分） ============ */
+.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#15181d;color:#f4f6f8;font-size:var(--t-sm);font-weight:600;padding:10px var(--s4)}
+.proto-banner::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;background:#ffd21f}
+.variant{min-height:100svh;padding-bottom:88px}
+.variant[hidden]{display:none}
+.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:var(--s2);background:#0c0e12;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background var(--dur)}
+.vs-btn:hover{background:rgba(255,255,255,.26)}
+.vs-label{font-size:var(--t-sm);font-weight:700;min-width:150px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ============ 3. 變體 1：可疑訊息檢查（沉穩聊天室） ============ */
+.v1{
+  --v-bg:#eef2ea;--v-panel:#ffffff;--v-ink:#26301f;--v-dim:#64715c;
+  --v-line:#dbe3d4;--v-green:#3c7d51;--v-green-deep:#2f6342;--v-green-soft:#e6efdf;
+  --v-bubble:#e2ecdb;--v-risk:#b23c2a;--v-risk-soft:#f9e9e4;--v-warn:#9a6b10;
+  --v-hl:#f6d38b;--v-hl-ink:#4a3608;
+  background:var(--v-bg);color:var(--v-ink);
+}
+.v1 :focus-visible{outline:2px solid var(--v-green);outline-offset:2px}
+.v1 ::selection{background:rgba(60,125,81,.25)}
+.v1-shell{max-width:1160px;margin:0 auto;padding:var(--s4) var(--s5) 0}
+.v1-top{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s3) 0 var(--s4)}
+.v1-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
+.v1-brand-sub{font-size:var(--t-sm);color:var(--v-dim);font-weight:600}
+.v1 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
+.v1-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:var(--s4);align-items:start}
+.v1-grid>*{min-width:0}
+.v1-col{display:grid;gap:var(--s4)}
+.v1 .card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4)}
+.v1 .card-title{margin-bottom:var(--s2)}
+.v1 .card-sub{color:var(--v-dim);font-size:var(--t-sm);line-height:1.7;margin-bottom:var(--s3)}
+
+/* 對話卡（模擬 LINE） */
+.v1-chat{padding:0;overflow:hidden}
+.v1-chat__head{display:flex;align-items:center;gap:10px;padding:12px var(--s4);background:var(--v-green-soft);border-bottom:1px solid var(--v-line)}
+.v1-avatar{flex:none;width:40px;height:40px;border-radius:10px;background:#c9d6c2;color:#5a6b53;display:grid;place-items:center;font-weight:800;font-size:var(--t-lg)}
+.v1-chat__who b{display:block;font-size:var(--t-md);font-weight:800}
+.v1-chat__who span{font-size:var(--t-cap);color:var(--v-dim)}
+.v1-chat__mock{margin-left:auto;font-size:var(--t-cap);font-weight:700;color:var(--v-warn);border:1px dashed rgba(154,107,16,.55);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.v1-chat__body{padding:var(--s4);display:grid;gap:10px;background:#f7faf4}
+.v1-bubble{max-width:88%;background:var(--v-bubble);border-radius:2px 14px 14px 14px;padding:10px 14px;font-size:var(--t-md);line-height:1.75}
+.v1-bubble mark{background:var(--v-hl);color:var(--v-hl-ink);border-radius:4px;padding:0 3px}
+.v1-link{font-family:var(--mono);font-size:var(--t-sm);color:var(--v-green-deep);background:#fff;border:1px solid var(--v-line);border-radius:6px;padding:1px 6px;word-break:break-all}
+.v1-chat__foot{padding:10px var(--s4);font-size:var(--t-cap);color:var(--v-dim);border-top:1px solid var(--v-line)}
+.v1-privacy{display:flex;gap:10px;align-items:flex-start;background:var(--v-green-soft);border:1px solid var(--v-line);border-radius:var(--r-m);padding:12px var(--s3);font-size:var(--t-sm);line-height:1.7;color:var(--v-ink)}
+.v1-privacy svg{flex:none;margin-top:2px}
+
+/* 風險結果 */
+.v1-risk{background:var(--v-risk-soft);border-color:#eacdc2}
+.v1-risk__row{display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap}
+.v1-risk__big{font-size:54px;line-height:1;font-weight:800;color:var(--v-risk);letter-spacing:-0.02em}
+.v1-risk__lbl{font-size:var(--t-cap);font-weight:800;letter-spacing:.08em;color:var(--v-warn);margin-bottom:6px}
+.v1-risk__meta{font-size:var(--t-cap);color:var(--v-dim);margin-bottom:var(--s3);font-variant-numeric:tabular-nums}
+.v1-risk__txt{font-size:var(--t-md);line-height:1.8;margin-top:var(--s3)}
+.v1-caution{margin-top:var(--s3);padding:10px var(--s3);background:rgba(255,255,255,.6);border:1px solid #eacdc2;border-radius:var(--r-m);font-size:var(--t-sm);line-height:1.75;color:#7c4436}
+.v1-chips{display:flex;flex-wrap:wrap;gap:6px;margin:var(--s2) 0 var(--s3)}
+.v1-chip{font-size:var(--t-sm);font-weight:700;color:var(--v-green-deep);background:var(--v-green-soft);border-radius:999px;padding:3px 12px}
+.v1-points{list-style:none;padding:0;display:grid;gap:12px}
+.v1-point{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px}
+.v1-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--v-ink);color:#fff;display:grid;place-items:center;font-size:var(--t-sm);font-weight:800;font-variant-numeric:tabular-nums}
+.v1-point b{display:block;font-size:var(--t-md);font-weight:800;margin-bottom:2px}
+.v1-point p{font-size:var(--t-sm);color:var(--v-dim);line-height:1.75}
+.v1-q{display:inline-block;font-size:var(--t-sm);background:#f7efe0;color:#6b4d14;border-radius:6px;padding:1px 8px;margin:2px 0 4px;word-break:break-all}
+/* 網址檢查 */
+.v1-url__link{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:var(--t-sm);background:#f7faf4;border:1px solid var(--v-line);border-radius:var(--r-m);padding:8px 12px;margin-bottom:var(--s3);word-break:break-all}
+.v1-url__res{font-size:var(--t-sm);font-weight:800;color:#fff;background:var(--v-risk);border-radius:8px;padding:3px 10px;white-space:nowrap}
+.v1-url ul{list-style:none;padding:0;display:grid;gap:8px;font-size:var(--t-sm);line-height:1.7;color:var(--v-dim)}
+.v1-url li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px}
+.v1-url li svg{margin-top:3px}
+/* 建議下一步 */
+.v1-steps ol{list-style:none;padding:0;display:grid;gap:10px;counter-reset:st}
+.v1-steps li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;font-size:var(--t-md);line-height:1.7}
+.v1-steps li .v1-num{background:var(--v-green)}
+.v1-steps .btn{margin-top:var(--s3);width:100%}
+.v1 .btn-primary{background:var(--v-green);color:#fff}
+.v1 .btn-primary:hover{background:var(--v-green-deep)}
+.v1-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.8}
+
+/* ============ 4. 變體 2：詐騙手法關係圖（灰霧圖板） ============ */
+.v2{
+  --v-bg:#e6eaee;--v-panel:#ffffff;--v-canvas:#f9fbfd;
+  --v-ink:#223041;--v-dim:#647689;--v-line:#d5dde5;
+  --v-dot:#c6d1dc;--v-edge:#a9bac9;--v-hl:#b45309;--v-hl-soft:#fdf1e3;--v-hl-line:#d97706;
+  background:var(--v-bg);color:var(--v-ink);
+}
+.v2 :focus-visible{outline:2px solid var(--v-hl);outline-offset:2px}
+.v2 ::selection{background:rgba(180,83,9,.22)}
+.v2-shell{max-width:1160px;margin:0 auto;padding:var(--s4) var(--s5) 0}
+.v2-top{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s3) 0 var(--s4)}
+.v2-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
+.v2-brand-sub{font-size:var(--t-sm);color:var(--v-dim);font-weight:600}
+.v2 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
+.v2-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:var(--s4);align-items:start}
+.v2-grid>*{min-width:0}
+.v2 .card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4)}
+.v2 .card-title{margin-bottom:var(--s2)}
+.v2 .card-sub{color:var(--v-dim);font-size:var(--t-sm);line-height:1.7;margin-bottom:var(--s3)}
+.v2-canvas__scroll{overflow-x:auto;border:1px solid var(--v-line);border-radius:var(--r-m);background:var(--v-canvas);background-image:radial-gradient(var(--v-dot) 1px,transparent 1px);background-size:22px 22px}
+.v2-canvas__scroll::-webkit-scrollbar{height:8px}
+.v2-canvas__scroll::-webkit-scrollbar-thumb{background:#c3ced8;border-radius:4px}
+.v2-graph{display:block;width:100%;min-width:700px;height:auto}
+.v2-graph .edge{stroke:var(--v-edge);stroke-linecap:round}
+.v2-graph .edge--hl{stroke:var(--v-hl-line)}
+.v2-graph .node rect{fill:#fff;stroke:#b4c2cf;stroke-width:1.5;rx:22}
+.v2-graph .node text{font-family:var(--sans);font-size:15px;font-weight:700;fill:var(--v-ink)}
+.v2-graph .node--hl rect{fill:var(--v-hl);stroke:#8f3f06}
+.v2-graph .node--hl text{fill:#fff}
+.v2-graph .node:hover rect{stroke:var(--v-hl-line);stroke-width:2.5}
+.v2-graph .halo{fill:none;stroke:var(--v-hl-line);stroke-width:1.5;opacity:.45}
+.v2-legend{display:flex;flex-wrap:wrap;gap:10px var(--s4);align-items:center;margin-top:var(--s3);font-size:var(--t-sm);color:var(--v-dim)}
+.v2-legend .lg{display:inline-flex;align-items:center;gap:6px}
+.v2-read{list-style:none;padding:0;margin:var(--s3) 0 0;display:grid;gap:8px;border-top:1px solid var(--v-line);padding-top:var(--s3)}
+.v2-read li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:var(--t-sm);line-height:1.7}
+.v2-read li b{color:var(--v-hl);font-weight:800}
+.v2-read__n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--v-hl-soft);color:var(--v-hl);display:grid;place-items:center;font-size:var(--t-sm);font-weight:800;font-variant-numeric:tabular-nums}
+.v2-node-card__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--s2)}
+.v2-node-card__head h3{font-size:var(--t-lg);font-weight:800}
+.v2-badge{font-size:var(--t-cap);font-weight:800;color:#fff;background:var(--v-hl);border-radius:999px;padding:2px 10px;white-space:nowrap}
+.v2-badge--dim{background:var(--v-ink)}
+.v2-node-card h4{margin:var(--s3) 0 6px;font-size:var(--t-sm);font-weight:800;color:var(--v-dim);letter-spacing:.04em}
+.v2-node-card ol{list-style:none;padding:0;display:grid;gap:6px}
+.v2-node-card li{font-size:var(--t-sm);line-height:1.75;color:var(--v-ink);display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px}
+.v2-node-card li svg{margin-top:4px}
+.v2-side{display:grid;gap:var(--s4)}
+.v2-src{font-size:var(--t-sm);color:var(--v-dim);line-height:1.75}
+.v2-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.8}
+
+/* ============ 5. 變體 3：一鍵親友求助（暖米大字屋） ============ */
+.v3{
+  --v-bg:#f8ecdc;--v-panel:#fffaf3;--v-ink:#33261b;--v-dim:#7d6a58;
+  --v-line:#ecdcc5;--v-sos:#d6492e;--v-sos-deep:#bd3a21;--v-sos-soft:#fbe4dc;
+  --g-sh:0 2px 6px rgba(90,55,25,.07),0 8px 24px rgba(90,55,25,.10);
+  background:var(--v-bg);color:var(--v-ink);font-size:19px;
+}
+.v3 :focus-visible{outline:3px solid var(--v-sos);outline-offset:3px;border-radius:14px}
+.v3 ::selection{background:rgba(214,73,46,.22)}
+.v3-shell{max-width:520px;margin:0 auto;padding:var(--s5) var(--s4) 0}
+.v3-top{display:flex;align-items:center;gap:var(--s3);padding-bottom:var(--s4)}
+.v3-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px}
+.v3 .syn-tag{margin-left:auto;font-size:13px;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
+.v3-h1{font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.35;margin:var(--s4) 0 var(--s2)}
+.v3-sub{font-size:20px;color:var(--v-dim);line-height:1.7;margin-bottom:var(--s5)}
+.v3-stack{display:grid;gap:var(--s5)}
+.v3 .card{background:var(--v-panel);border-radius:22px;box-shadow:var(--g-sh);padding:var(--s5)}
+.v3-sec-t{font-size:23px;font-weight:800;margin-bottom:var(--s4);line-height:1.4}
+.v3-trust{font-size:17px;color:var(--v-dim);line-height:1.65;margin:-6px 0 var(--s4)}
+/* 巨量 SOS 按鈕 */
+.v3-sos{display:block;width:100%;position:relative;border:0;border-radius:26px;background:var(--v-sos);color:#fff;padding:26px var(--s5);text-align:center;box-shadow:0 4px 14px rgba(189,58,33,.32);transition:background var(--dur),transform var(--dur)}
+.v3-sos:hover{background:var(--v-sos-deep)}
+.v3-sos:active{transform:translateY(2px)}
+.v3-sos__t{display:block;font-size:26px;font-weight:800;line-height:1.4;margin-top:12px}
+.v3-sos__s{display:block;font-size:17px;opacity:.92;margin-top:6px;line-height:1.6}
+.v3-sos::after{content:"";position:absolute;inset:0;border-radius:26px;border:3px solid rgba(255,255,255,.55);opacity:0;pointer-events:none}
+/* 親友卡 */
+.v3-contacts{display:grid;gap:14px}
+.v3-c{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;align-items:center;background:var(--v-panel);border-radius:20px;box-shadow:var(--g-sh);padding:18px}
+.v3-avatar{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:800;color:#fff}
+.v3-av1{background:#d6492e}
+.v3-av2{background:#b3592b}
+.v3-av3{background:#8a6f3c}
+.v3-c b{display:block;font-size:27px;font-weight:800;line-height:1.3}
+.v3-c span{font-size:17px;color:var(--v-dim)}
+.v3-cbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.v3-cbtns .gbtn{min-height:60px;font-size:19px;padding:12px 10px;border-radius:14px}
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;font-weight:800;line-height:1.3;transition:background var(--dur),transform var(--dur)}
+.gbtn:active{transform:translateY(1px)}
+.gbtn--solid{background:var(--v-ink);color:#fffaf3}
+.gbtn--solid:hover{background:#4a3829}
+.gbtn--line{background:transparent;color:var(--v-ink);box-shadow:inset 0 0 0 2px var(--v-line)}
+.gbtn--line:hover{box-shadow:inset 0 0 0 2px #d9b98f;background:#fff5e8}
+/* 語音引導 */
+.v3-voice{display:flex;gap:var(--s4);align-items:center}
+.v3-voice__ico{flex:none;width:72px;height:72px;border-radius:50%;background:var(--v-sos-soft);display:grid;place-items:center;color:var(--v-sos)}
+.v3-voice__t{font-size:24px;font-weight:800;line-height:1.35}
+.v3-voice__s{font-size:19px;color:var(--v-dim);line-height:1.65;margin-top:4px}
+.v3-bigbtn{display:flex;min-height:66px;font-size:21px;padding:14px 20px;border-radius:16px}
+/* 165 專線 */
+.v3-165{text-align:center;background:var(--v-ink);color:#fffaf3;border-radius:22px;box-shadow:var(--g-sh);padding:var(--s5)}
+.v3-165__lbl{font-size:20px;font-weight:700;opacity:.85;letter-spacing:.04em}
+.v3-165__num{font-size:76px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.v3-165__s{font-size:19px;opacity:.85;line-height:1.6;margin-bottom:var(--s4)}
+.v3-165 .gbtn--solid{background:var(--v-sos);color:#fff;width:100%;min-height:68px;font-size:22px}
+.v3-165 .gbtn--solid:hover{background:var(--v-sos-deep)}
+.v3-child{background:var(--v-panel);border-radius:18px;box-shadow:var(--g-sh);padding:var(--s4);font-size:18px;line-height:1.75}
+.v3-child b{color:var(--v-sos);font-weight:800}
+.v3-foot{color:var(--v-dim);font-size:14px;margin-top:var(--s5);line-height:1.8}
+
+/* ============ 6. 動效（單一刻意的瞬間；減動效環境自動關閉） ============ */
+@media (prefers-reduced-motion:no-preference){
+  .v1 .v1-col--right .card{animation:v1fade .5s ease-out backwards}
+  .v1 .v1-col--right .card:nth-child(2){animation-delay:.08s}
+  .v1 .v1-col--right .card:nth-child(3){animation-delay:.16s}
+  .v1 .v1-col--right .card:nth-child(4){animation-delay:.24s}
+  @keyframes v1fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .v2 .halo{animation:vhb 2.8s ease-in-out infinite}
+  .v2 .halo--2{animation-delay:1.4s}
+  @keyframes vhb{0%,100%{opacity:.3}50%{opacity:.8}}
+  .v3 .v3-sos::after{animation:v3ring 3.2s ease-out infinite}
+  @keyframes v3ring{0%{opacity:.55;transform:scale(.985)}70%,100%{opacity:0;transform:scale(1.02)}}
+}
+@media (prefers-reduced-motion:reduce){
+  .v3 .v3-sos::after{display:none}
+}
+
+/* ============ 7. 響應式 ============ */
+@media (max-width:900px){
+  .v1-grid,.v2-grid{grid-template-columns:1fr}
+  .v1-shell,.v2-shell{padding-left:var(--s4);padding-right:var(--s4)}
+}
+@media (max-width:480px){
+  .v3-shell{padding-left:var(--s3);padding-right:var(--s3)}
+  .v3-c{grid-template-columns:64px minmax(0,1fr);gap:12px;padding:16px}
+  .v3-avatar{width:64px;height:64px;font-size:26px}
+  .v3-165__num{font-size:64px}
+}
+</style>
+</head>
+<body>
+
+<div class="proto-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
+
+<main>
+<!-- ================= 變體 1：可疑訊息檢查（長輩 · LINE 式對話＋風險分析） ================= -->
+<section class="variant v1" data-variant="1">
+  <div class="v1-shell">
+    <header class="v1-top">
+      <div class="v1-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5z" fill="currentColor" opacity=".16"/><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5L12 2.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.8 11.9l2.3 2.3 4.1-4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ScamGraph
+        <span class="v1-brand-sub">可疑訊息檢查</span>
+      </div>
+      <span class="syn-tag">合成資料</span>
+    </header>
+
+    <div class="v1-grid">
+      <div class="v1-col">
+        <article class="card v1-chat" aria-label="模擬對話截圖">
+          <header class="v1-chat__head">
+            <span class="v1-avatar" aria-hidden="true">客</span>
+            <div class="v1-chat__who">
+              <b>XX 銀行客服</b>
+              <span>非好友 · 今天 14:32</span>
+            </div>
+            <span class="v1-chat__mock">模擬對話</span>
+          </header>
+          <div class="v1-chat__body">
+            <div class="v1-bubble">您好，<mark>這裡是 XX 銀行客服</mark>。系統偵測到您的信用卡今早在境外有一筆 8,200 元的異常消費。</div>
+            <div class="v1-bubble">為了保護您的帳戶，請您在 <mark>30 分鐘內</mark> 將 5,000 元「保額金」轉入安全帳戶，<mark>逾期您的帳戶將被凍結</mark>。</div>
+            <div class="v1-bubble">請先登入官方驗證頁面確認身分：<span class="v1-link">bank-verify.page/secure</span></div>
+          </div>
+          <footer class="v1-chat__foot">對話內容為合成示範，非真實截圖；黃色底紋為系統標記的疑慮句子。</footer>
+        </article>
+
+        <div class="v1-privacy">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <span><b>隱私說明：</b>截圖與文字只在你自己的裝置上檢查，不會上傳、不會儲存，也不會有第三人看見。</span>
+        </div>
+      </div>
+
+      <div class="v1-col v1-col--right">
+        <article class="card v1-risk">
+          <p class="v1-risk__meta">檢查完成 14:35 · 比中手法 3 項 · 掃描連結 1 個 · 全程在你的裝置上完成</p>
+          <div class="v1-risk__row">
+            <div>
+              <div class="v1-risk__lbl">風險等級</div>
+              <span class="v1-risk__big">高</span>
+            </div>
+            <p class="v1-risk__txt" style="flex:1;min-width:220px">這則訊息同時出現「假裝官方身分」和「限時要求匯款」，是公開防詐案例中最常見的組合。<b>建議先不要回覆、不要操作任何連結。</b></p>
+          </div>
+          <p class="v1-caution">結果說明：本結果是拿訊息和公開案例的常見手法做比對，<b>可能誤判</b>。「高」不代表「確定是詐騙」，也不代表「確定不是」；拿不定時，請撥 165 反詐騙專線再確認。</p>
+        </article>
+
+        <article class="card">
+          <h2 class="card-title">比中的手法</h2>
+          <div class="v1-chips">
+            <span class="v1-chip">假客服冒用</span>
+            <span class="v1-chip">急迫施壓</span>
+            <span class="v1-chip">要求匯款</span>
+          </div>
+          <ol class="v1-points">
+            <li class="v1-point">
+              <span class="v1-num" aria-hidden="true">1</span>
+              <div>
+                <b>假客服冒用</b>
+                <span class="v1-q">「這裡是 XX 銀行客服」</span>
+                <p>正規客服不會用一般訊息來自稱身分；銀行發現異常，通常會請你自行回撥官方電話，而不是等你立刻回應。</p>
+              </div>
+            </li>
+            <li class="v1-point">
+              <span class="v1-num" aria-hidden="true">2</span>
+              <div>
+                <b>急迫施壓</b>
+                <span class="v1-q">「30 分鐘內」「逾期您的帳戶將被凍結」</span>
+                <p>用時間壓力讓你來不及思考、也來不及找人確認——這是詐騙最常用的一招。事情「再急」，也不該急到不敢問人。</p>
+              </div>
+            </li>
+            <li class="v1-point">
+              <span class="v1-num" aria-hidden="true">3</span>
+              <div>
+                <b>要求匯款</b>
+                <span class="v1-q">「5,000 元保額金轉入安全帳戶」</span>
+                <p>銀行不會要求你把錢轉到「另一個帳戶」。任何名為「安全帳戶」「驗證金」的匯款要求，都不可信。</p>
+              </div>
+            </li>
+          </ol>
+        </article>
+
+        <article class="card v1-url">
+          <h2 class="card-title">網址檢查</h2>
+          <div class="v1-url__link">
+            <span class="v1-link" style="border:0;background:transparent;padding:0">bank-verify.page/secure</span>
+            <span class="v1-url__res">標記為可疑 · 仿冒登入頁面</span>
+          </div>
+          <ul>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              頁面長得像銀行登入頁，目的通常是在輸入時取得你的帳號密碼。
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              網域不是該銀行的官方網域，名稱只是「看起來很像」。
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              該網域註冊時間很短，且沒有正式的資安憑證。
+            </li>
+          </ul>
+          <p class="v1-caution" style="background:transparent;border-color:var(--v-line);color:var(--v-dim);margin-top:var(--s3)">網址檢查僅供參考；官方管道與 165 的判斷，永遠比線上工具可靠。</p>
+        </article>
+
+        <article class="card v1-steps">
+          <h2 class="card-title">建議下一步（照順序做就好）</h2>
+          <ol>
+            <li><span class="v1-num" aria-hidden="true">1</span><span>先放下手機，<b>不要回覆、不要回撥</b>那個號碼。</span></li>
+            <li><span class="v1-num" aria-hidden="true">2</span><span>不要匯款，也不要輸入任何帳號、密碼或 OTP。</span></li>
+            <li><span class="v1-num" aria-hidden="true">3</span><span>自己搜尋該銀行的官方客服電話（或下次走回櫃檯），確認是否真的有異常交易。</span></li>
+            <li><span class="v1-num" aria-hidden="true">4</span><span>撥打 165 反詐騙專線，把訊息內容讀給對方聽，請他們幫你判斷。</span></li>
+          </ol>
+          <button class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>
+            撥打 165 反詐騙專線
+          </button>
+        </article>
+      </div>
+    </div>
+    <p class="v1-foot">對話、人名與檢查結果皆為合成示範資料，僅供選題評審。本工具不替代法律判斷；風險評估僅供參考，不構成法律或投資建議。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 2：詐騙手法關係圖（灰霧圖板 · SVG 共現圖） ================= -->
+<section class="variant v2" data-variant="2" hidden>
+  <div class="v2-shell">
+    <header class="v2-top">
+      <div class="v2-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="3.2" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><circle cx="11" cy="18" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M8.6 7.4L15 8M7 9l3 6.4M15.8 10.4L12.6 15.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        ScamGraph
+        <span class="v2-brand-sub">詐騙手法關係圖</span>
+      </div>
+      <span class="syn-tag">合成資料</span>
+    </header>
+
+    <div class="v2-grid">
+      <article class="card">
+        <h2 class="card-title">手法關係圖</h2>
+        <p class="card-sub">同一種詐騙，常把幾種手法疊在一起用。看哪些手法最常被「綁在同一案」裡——這張圖就是用來教你一眼認出組合。</p>
+        <div class="v2-canvas__scroll" role="img" aria-label="詐騙手法共現關係圖：假客服冒用、釣魚連結、要個資、公檢法恐嚇、急迫施壓、要求匯款、投資理財誘導、親友帳戶失竊八個節點，以粗細不一的連線表示常共同出現的程度；假客服冒用與急迫施壓為本案比中節點，以琥珀色標示。">
+          <svg class="v2-graph" viewBox="0 0 800 540">
+            <!-- 連線（粗細＝常共同出現程度） -->
+            <g>
+              <line class="edge edge--hl" x1="170" y1="100" x2="400" y2="270" stroke-width="4.5"/>
+              <line class="edge" x1="170" y1="100" x2="430" y2="80" stroke-width="2"/>
+              <line class="edge" x1="170" y1="100" x2="640" y2="260" stroke-width="2.5"/>
+              <line class="edge" x1="430" y1="80" x2="680" y2="150" stroke-width="4"/>
+              <line class="edge" x1="680" y1="150" x2="640" y2="260" stroke-width="2.5"/>
+              <line class="edge" x1="150" y1="320" x2="400" y2="270" stroke-width="4"/>
+              <line class="edge" x1="150" y1="320" x2="330" y2="460" stroke-width="2.5"/>
+              <line class="edge" x1="330" y1="460" x2="640" y2="260" stroke-width="4"/>
+              <line class="edge" x1="330" y1="460" x2="620" y2="440" stroke-width="2"/>
+              <line class="edge" x1="620" y1="440" x2="640" y2="260" stroke-width="3"/>
+              <line class="edge" x1="400" y1="270" x2="640" y2="260" stroke-width="3"/>
+            </g>
+            <!-- 本案比中光環 -->
+            <rect class="halo" x="98" y="72" width="144" height="56" rx="26"/>
+            <rect class="halo halo--2" x="328" y="242" width="144" height="56" rx="26"/>
+            <!-- 節點 -->
+            <g class="node node--hl"><rect x="104" y="78" width="132" height="44" rx="22"/><text x="170" y="105" text-anchor="middle">假客服冒用</text></g>
+            <g class="node"><rect x="364" y="58" width="132" height="44" rx="22"/><text x="430" y="85" text-anchor="middle">釣魚連結</text></g>
+            <g class="node"><rect x="614" y="128" width="132" height="44" rx="22"/><text x="680" y="155" text-anchor="middle">要個資</text></g>
+            <g class="node"><rect x="80" y="298" width="140" height="44" rx="22"/><text x="150" y="325" text-anchor="middle">公檢法恐嚇</text></g>
+            <g class="node node--hl"><rect x="334" y="248" width="132" height="44" rx="22"/><text x="400" y="275" text-anchor="middle">急迫施壓</text></g>
+            <g class="node"><rect x="574" y="238" width="132" height="44" rx="22"/><text x="640" y="265" text-anchor="middle">要求匯款</text></g>
+            <g class="node"><rect x="254" y="438" width="152" height="44" rx="22"/><text x="330" y="465" text-anchor="middle">投資理財誘導</text></g>
+            <g class="node"><rect x="544" y="418" width="152" height="44" rx="22"/><text x="620" y="445" text-anchor="middle">親友帳戶失竊</text></g>
+          </svg>
+        </div>
+        <div class="v2-legend" aria-label="圖例">
+          <span class="lg"><svg width="34" height="22" viewBox="0 0 34 22" aria-hidden="true"><rect x="1" y="1" width="32" height="20" rx="10" fill="#fff" stroke="#b4c2cf" stroke-width="1.5"/></svg>一般手法</span>
+          <span class="lg"><svg width="34" height="22" viewBox="0 0 34 22" aria-hidden="true"><rect x="1" y="1" width="32" height="20" rx="10" fill="#b45309"/></svg>本案比中（假客服訊息）</span>
+          <span class="lg"><svg width="46" height="18" viewBox="0 0 46 18" aria-hidden="true"><line x1="2" y1="5" x2="44" y2="5" stroke="#a9bac9" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="13" x2="44" y2="13" stroke="#a9bac9" stroke-width="5" stroke-linecap="round"/></svg>線越粗＝越常一起出現</span>
+        </div>
+        <ol class="v2-read">
+          <li><span class="v2-read__n" aria-hidden="true">1</span><span><b>先看亮的</b>：琥珀色節點是這則訊息「踩中」的手法，先認得它們。</span></li>
+          <li><span class="v2-read__n" aria-hidden="true">2</span><span><b>再跟著粗線走</b>：粗線連到的手法，代表詐騙者接下來很可能接著做的事，提前防一手。</span></li>
+          <li><span class="v2-read__n" aria-hidden="true">3</span><span><b>最後看對策</b>：亮色節點的手法說明卡裡，有「特徵」和「自保」各幾點，慢慢讀就好。</span></li>
+        </ol>
+      </article>
+
+      <aside class="v2-side">
+        <article class="card v2-node-card">
+          <div class="v2-node-card__head">
+            <h3>假客服冒用</h3>
+            <span class="v2-badge">本案比中</span>
+          </div>
+          <h4>常見特徵</h4>
+          <ol>
+            <li><svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>以銀行、電信、政府單位身分自稱，有時還說得出你的部分資料，顯得「很官方」。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>理由總是「出事了」：境外消費、帳戶異常、牽涉案件，讓你第一時間緊張。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>引導你離開官方管道：改打陌生電話、點陌生連結、下載陌生 APP。</span></li>
+          </ol>
+          <h4>如何自保</h4>
+          <ol>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.8-7 9.8-4-2-7-5.4-7-9.8V6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>直接掛斷，再<b>自行搜尋</b>該機構的官方電話回撥——只信自己查到的號碼。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.8-7 9.8-4-2-7-5.4-7-9.8V6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>不點連結、不裝 APP、不提供任何個資或 OTP。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.8-7 9.8-4-2-7-5.4-7-9.8V6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>拿不定主意時，撥 165 反詐騙專線，把整段對話念給對方聽。</span></li>
+          </ol>
+        </article>
+
+        <article class="card v2-node-card">
+          <div class="v2-node-card__head">
+            <h3>急迫施壓</h3>
+            <span class="v2-badge">本案比中</span>
+            <span class="v2-badge v2-badge--dim">常與左側連線手法同案出現</span>
+          </div>
+          <h4>常見特徵</h4>
+          <ol>
+            <li><svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>限時：「30 分鐘內」「今天中午前」，時間越短越可疑。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 8.3l1.6 1.6 3.2-3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>恐嚇後果：凍結帳戶、逮捕、連累家人，故意讓你不敢問人。</span></li>
+          </ol>
+          <h4>如何自保</h4>
+          <ol>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.8-7 9.8-4-2-7-5.4-7-9.8V6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>越急越要停：先放下手機，深呼吸，告訴自己「急，就是他想要的」。</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5.2c0 4.4-3 7.8-7 9.8-4-2-7-5.4-7-9.8V6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>任何事都等 24 小時再處理也不遲——真正的官方業務，不會因為你晚半天就消失。</span></li>
+          </ol>
+        </article>
+
+        <p class="v2-src">節點與連線依據公開防詐案例彙整（合成示範資料），僅供教學理解，不代表統計事實。「本案」指的是假客服訊息這個例子——換一則訊息，亮起來的節點會不一樣。</p>
+      </aside>
+    </div>
+    <p class="v2-foot">關係圖內容為合成示範資料，僅供選題評審。本工具不替代法律判斷；手法說明僅供參考，不構成法律或投資建議。</p>
+  </div>
+</section>
+
+<!-- ================= 變體 3：一鍵親友求助（長輩 · 大字暖色求助畫面） ================= -->
+<section class="variant v3" data-variant="3" hidden>
+  <div class="v3-shell">
+    <header class="v3-top">
+      <div class="v3-brand">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5z" fill="#d6492e" opacity=".16"/><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5L12 2.5z" stroke="#d6492e" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.8 11.9l2.3 2.3 4.1-4.6" stroke="#d6492e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ScamGraph 安心版
+      </div>
+      <span class="syn-tag">合成資料</span>
+    </header>
+
+    <h1 class="v3-h1">收到可疑訊息？<br>先別急，我們陪你慢慢看。</h1>
+    <p class="v3-sub">不知道是不是詐騙、也不知道要找誰問？下面的按鈕，就是幫你做的。</p>
+
+    <div class="v3-stack">
+      <button class="v3-sos">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5z" fill="currentColor" opacity=".22"/><path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.2-7.5 10.4-4.4-2.2-7.5-5.8-7.5-10.4V5.5L12 2.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1.3" fill="currentColor"/></svg>
+        <span class="v3-sos__t">我有可疑訊息，幫我確認</span>
+        <span class="v3-sos__s">按了不會扣錢，也不需要立刻做任何決定。</span>
+      </button>
+
+      <section aria-label="找信任的親友">
+        <h2 class="v3-sec-t">找信任的親友幫你看看</h2>
+        <p class="v3-trust">這些人都是你自己加進來的，我們不會替你選人；不想打給誰，就先不看那一張卡。</p>
+        <div class="v3-contacts">
+          <div class="v3-c">
+            <span class="v3-avatar v3-av1" aria-hidden="true">豪</span>
+            <div>
+              <span>兒子</span>
+              <b>家豪</b>
+              <div class="v3-cbtns">
+                <button class="gbtn gbtn--solid"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>一鍵來電</button>
+                <button class="gbtn gbtn--line"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg>一則訊息</button>
+              </div>
+            </div>
+          </div>
+          <div class="v3-c">
+            <span class="v3-avatar v3-av2" aria-hidden="true">雯</span>
+            <div>
+              <span>女兒</span>
+              <b>雅雯</b>
+              <div class="v3-cbtns">
+                <button class="gbtn gbtn--solid"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>一鍵來電</button>
+                <button class="gbtn gbtn--line"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg>一則訊息</button>
+              </div>
+            </div>
+          </div>
+          <div class="v3-c">
+            <span class="v3-avatar v3-av3" aria-hidden="true">遠</span>
+            <div>
+              <span>外甥</span>
+              <b>志遠</b>
+              <div class="v3-cbtns">
+                <button class="gbtn gbtn--solid"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>一鍵來電</button>
+                <button class="gbtn gbtn--line"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg>一則訊息</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <article class="card">
+        <div class="v3-voice">
+          <span class="v3-voice__ico" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8v14.4L19.4 12z"/></svg>
+          </span>
+          <div>
+            <div class="v3-voice__t">語音引導</div>
+            <p class="v3-voice__s">看不完文字也沒關係。按下方按鈕，一步一步教你做。</p>
+          </div>
+        </div>
+        <button class="gbtn gbtn--solid v3-bigbtn" style="margin-top:var(--s4)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8v14.4L19.4 12z"/></svg>
+          開始聽
+        </button>
+      </article>
+
+      <article class="v3-165">
+        <div class="v3-165__lbl">165 反詐騙專線</div>
+        <div class="v3-165__num">165</div>
+        <p class="v3-165__s">免費、24 小時都有人接。<br>不確定、不說出口也沒關係，先撥電話講一講。</p>
+        <button class="gbtn gbtn--solid">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>
+          撥打 165
+        </button>
+      </article>
+      <article class="v3-child">
+        <b>給兒女：</b>也可以在你父母的手機裡打開這頁，陪他一步步看；先問「你現在方便嗎」，比直接說「你被騙了」有用得多。
+      </article>
+    </div>
+
+    <p class="v3-foot">所有人物、對話與結果皆為合成示範資料，僅供選題評審。本工具不替代法律判斷；風險評估僅供參考，不構成法律或投資建議。</p>
+  </div>
+</section>
+</main>
+
+<div class="variant-switcher" role="toolbar" aria-label="變體切換">
+  <button class="vs-btn" data-variant-prev aria-label="上一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <span class="vs-label" data-variant-label aria-live="polite">1 (可疑訊息檢查)</span>
+  <button class="vs-btn" data-variant-next aria-label="下一個變體">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+</div>
+
+<script>
+(function () {
+  var NAMES = { '1': '可疑訊息檢查', '2': '詐騙手法關係圖', '3': '一鍵親友求助' };
+  var KEYS = ['1', '2', '3'];
+  var label = document.querySelector('[data-variant-label]');
+
+  function current() {
+    var p = new URLSearchParams(location.search);
+    var v = p.get('variant');
+    return KEYS.indexOf(v) >= 0 ? v : '1';
+  }
+
+  function setVariant(v) {
+    document.querySelectorAll('section.variant').forEach(function (s) {
+      s.hidden = s.getAttribute('data-variant') !== v;
+    });
+    label.textContent = v + ' (' + NAMES[v] + ')';
+    try {
+      var p = new URLSearchParams(location.search);
+      p.set('variant', v);
+      history.replaceState(null, '', '?' + p.toString());
+    } catch (err) {
+      try { location.search = '?variant=' + v; } catch (e2) {}
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function cycle(d) {
+    var i = KEYS.indexOf(current());
+    setVariant(KEYS[(i + d + 3) % 3]);
+  }
+
+  document.querySelector('[data-variant-prev]').addEventListener('click', function () { cycle(-1); });
+  document.querySelector('[data-variant-next]').addEventListener('click', function () { cycle(1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var t = document.activeElement;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    cycle(e.key === 'ArrowRight' ? 1 : -1);
+  });
+
+  setVariant(current());
+})();
+</script>
+</body>
+</html>
