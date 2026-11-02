@@ -1,211 +1,158 @@
 <!doctype html>
-<!-- DrillOps 設計問題：「緊急演練中，指揮中心、現場人員、資源調度」三個角色各需要看什麼？三個結構迥異的變體以 ?variant=1..3 切換：1 指揮中心（暗色戰情室）、2 現場任務流（行動端大按鈕）、3 平面圖資源圖（藍圖）。 -->
-<!--
-  設計系統（一次性原型）
-  共用 token：4px 間距階層 --s1..--s7；字級 --t-cap/sm/md/lg/xl/code；圓角 --r-s/m/l；陰影 --sh-1。
-  三個變體各是一個獨立「視覺世界」，世界色票以 .v1/.v2/.v3 範圍內的 CSS 變數宣告：
-  v1 演練指揮中心＝暗色戰情室（深藍墨底、緊急紅/進行藍/警告琥珀/完成綠語義色、monospace 限於時間戳與計時）
-  v2 現場任務流＝明亮行動端（暖白底、墨色文字、大卡片大按鈕、單一欄位）
-  v3 平面圖資源圖＝藍圖（淡藍灰紙底、深藍墨線、工程圖字體感、SVG 平面圖）
-  每個世界只宣告一層高程（v1 用 1px 框線、v2/v3 用陰影或框線），不混用。
--->
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DrillOps 一次性原型（第一版）</title>
 <style>
-/* ============ 0. 重置與共用 token ============ */
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
 :root{
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
-  --r-s:8px;--r-m:12px;--r-l:16px;
-  --t-cap:11px;--t-sm:12px;--t-md:14px;--t-lg:16px;--t-xl:22px;--t-code:13px;
-  --sh-1:0 1px 2px rgba(15,23,42,.06),0 2px 8px rgba(15,23,42,.09);
-  --dur:160ms;
+  --serif:ui-serif,"New York","Songti TC","Noto Serif TC",Georgia,serif;
+  --s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;
+  --ink:#141312;
+  --board:#191817;
+  --board2:#201f1d;
+  --chalk:#f2efe9;
+  --amber:#ffb454;
+  --red:#ff4438;
+  --green:#3ecf8e;
+  --paper:#f7f5ef;
+  --inkblack:#1a1917;
 }
-body{font-family:var(--sans);font-size:var(--t-md);background:#10151c}
+body{font-family:var(--sans);font-size:14px;background:var(--board);color:var(--chalk)}
 h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
 button{font:inherit;cursor:pointer}
-img,svg{vertical-align:middle}
+svg{vertical-align:middle}
+.lamp{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.lamp--run{background:var(--amber);box-shadow:0 0 0 3px rgba(255,180,84,.18)}
+.lamp--urg{background:var(--red);box-shadow:0 0 0 3px rgba(255,68,56,.2)}
+.lamp--done{background:var(--green)}
+.lamp--idle{background:#4a4741}
+.drill-badge{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--red);border:1.5px solid var(--red);border-radius:3px;padding:3px 10px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 
-/* ============ 1. 共用元件 ============ */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:9px 16px;font-size:var(--t-sm);font-weight:700;line-height:1.2;transition:background var(--dur),transform var(--dur),box-shadow var(--dur)}
-.btn:active{transform:translateY(1px)}
-.card-title{font-size:var(--t-lg);font-weight:800;letter-spacing:-0.01em}
-.syn-tag{font-size:var(--t-cap);border-radius:999px;padding:2px 8px;white-space:nowrap}
-
-/* ============ 2. 原型共用外框（非頁面設計的一部分） ============ */
-.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#15181d;color:#f4f6f8;font-size:var(--t-sm);font-weight:600;padding:10px var(--s4)}
+.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#0e0d0c;color:var(--chalk);font-size:14px;font-weight:600;padding:10px 16px}
 .proto-banner::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;background:#ffd21f}
 .variant{min-height:100svh;padding-bottom:88px}
 .variant[hidden]{display:none}
-.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:var(--s2);background:#0c0e12;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
-.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background var(--dur)}
-.vs-btn:hover{background:rgba(255,255,255,.26)}
-.vs-label{font-size:var(--t-sm);font-weight:700;min-width:132px;text-align:center;font-variant-numeric:tabular-nums}
+.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:8px;background:#0e0d0c;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background 140ms}
+.vs-btn:hover{background:rgba(255,255,255,.28)}
+.vs-label{font-family:var(--mono);font-size:12px;font-weight:700;min-width:150px;text-align:center;font-variant-numeric:tabular-nums}
+.syn-tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;border:1px solid currentColor;border-radius:3px;padding:2px 8px;white-space:nowrap}
 
-/* ============ 3. 變體 1：演練指揮中心（暗色戰情室） ============ */
-.v1{
-  --v-bg:#10151c;--v-panel:#171e29;--v-panel2:#121822;--v-code:#0b1016;
-  --v-line:#283447;--v-text:#e3eaf4;--v-dim:#8b9cb2;
-  --v-ok:#3fd07f;--v-run:#58a6ff;--v-warn:#ffb454;--v-red:#ff5f56;--v-accent:#ff5f56;
-  background:var(--v-bg);color:var(--v-text);color-scheme:dark;
-}
-.v1 :focus-visible{outline:2px solid var(--v-run);outline-offset:2px}
-.v1 ::selection{background:rgba(88,166,255,.35)}
-.v1-shell{max-width:1200px;margin:0 auto;padding:0 var(--s5)}
-.v1-topbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s4) 0;border-bottom:1px solid var(--v-line);margin-bottom:var(--s5)}
-.v1-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
-.v1-brand small{font-weight:600;color:var(--v-dim);font-size:var(--t-sm)}
-.v1-live{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-sm);font-weight:800;color:var(--v-red);background:rgba(255,95,86,.12);border:1px solid rgba(255,95,86,.4);padding:3px 10px;border-radius:999px}
-.v1-live i{width:8px;height:8px;border-radius:50%;background:var(--v-red);animation:v1pulse 1.6s ease-in-out infinite}
-@keyframes v1pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.v1-timer{font-family:var(--mono);font-size:var(--t-lg);font-weight:700;color:var(--v-warn);background:rgba(255,180,84,.1);padding:2px 10px;border-radius:8px;font-variant-numeric:tabular-nums}
-.v1-scene{color:var(--v-dim);font-size:var(--t-sm)}
-.v1-scene b{color:var(--v-text);font-weight:700}
-.v1-actions{margin-left:auto;display:flex;align-items:center;gap:var(--s2)}
-.v1 .syn-tag{color:var(--v-dim);border:1px solid var(--v-line)}
-.v1-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:var(--s5);align-items:start}
-.v1-col{display:grid;gap:var(--s4)}
-.v1 .card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4)}
-.v1 .card h2{font-size:var(--t-lg);font-weight:800;margin-bottom:var(--s3)}
-.v1-feed{list-style:none;padding:0}
-.v1-feed li{position:relative;padding:0 0 var(--s3) var(--s5);border-left:2px solid var(--v-line);margin-left:6px}
-.v1-feed li:last-child{padding-bottom:0}
-.v1-feed li::before{content:"";position:absolute;left:-6px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--v-panel);border:2px solid var(--v-dim)}
-.v1-feed li--crit::before{border-color:var(--v-red);background:var(--v-red)}
-.v1-feed li--ok::before{border-color:var(--v-ok)}
-.v1-feed li--run::before{border-color:var(--v-run)}
-.v1-ft{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.v1-ftime{font-family:var(--mono);font-size:var(--t-code);color:var(--v-dim);font-variant-numeric:tabular-nums;flex:none}
-.v1-frole{font-size:var(--t-cap);font-weight:800;border-radius:6px;padding:1px 7px;flex:none}
-.rp-tb{background:rgba(88,166,255,.14);color:var(--v-run)}
-.rp-jj{background:rgba(63,208,127,.14);color:var(--v-ok)}
-.rp-sc{background:rgba(255,95,86,.14);color:var(--v-red)}
-.rp-qi{background:rgba(255,180,84,.14);color:var(--v-warn)}
-.v1-ftxt{font-size:var(--t-md)}
-.v1-board{display:grid;gap:var(--s3)}
-.v1-bgroup{border:1px solid var(--v-line);border-radius:var(--r-m);padding:var(--s3);background:var(--v-panel2)}
-.v1-bhead{display:flex;align-items:center;gap:8px;margin-bottom:var(--s2)}
-.v1-bhead b{font-size:var(--t-md)}
-.v1-bcount{margin-left:auto;font-size:var(--t-sm);color:var(--v-dim);font-variant-numeric:tabular-nums}
-.v1-btasks{display:flex;flex-wrap:wrap;gap:6px}
-.v1-btask{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-sm);border:1px solid var(--v-line);border-radius:999px;padding:4px 10px}
-.v1-bst{font-size:var(--t-cap);font-weight:800;padding:1px 7px;border-radius:999px}
-.bst--wait{background:rgba(139,156,178,.16);color:var(--v-dim)}
-.bst--run{background:rgba(88,166,255,.16);color:var(--v-run)}
-.bst--ok{background:rgba(63,208,127,.16);color:var(--v-ok)}
-.bst--warn{background:rgba(255,180,84,.16);color:var(--v-warn)}
-.v1-res{margin-top:0}
-.v1-reslist{display:flex;flex-wrap:wrap;gap:var(--s3)}
-.v1-resitem{flex:1 1 180px;display:flex;align-items:center;gap:10px;border:1px solid var(--v-line);border-radius:var(--r-m);padding:10px 12px;background:var(--v-panel2)}
-.v1-resitem svg{flex:none}
-.v1-resname{font-size:var(--t-sm);font-weight:700}
-.v1-resst{margin-left:auto;font-size:var(--t-cap);font-weight:800;white-space:nowrap}
-.rs--ok{color:var(--v-ok)}
-.rs--run{color:var(--v-run)}
-.rs--warn{color:var(--v-warn)}
-.v1 .btn-primary{background:var(--v-red);color:#2a0503}
-.v1 .btn-primary:hover{background:#ff7a72}
-.v1 .btn-ghost{background:transparent;color:var(--v-dim);box-shadow:inset 0 0 0 1px var(--v-line)}
-.v1 .btn-ghost:hover{color:var(--v-text)}
-.v1-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.7}
+/* ===== v1 split-flap 指揮中心 ===== */
+.v1{color:var(--chalk);color-scheme:dark}
+.v1 :focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.v1 ::selection{background:var(--amber);color:var(--ink)}
+.v1-shell{max-width:1200px;margin:0 auto;padding:0 var(--s4)}
+.v1-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:var(--s4) 0;border-bottom:1px solid #2c2a26}
+.v1-brand{font-family:var(--mono);font-size:18px;font-weight:800;letter-spacing:.08em}
+.v1-scene{font-size:13px;color:#9b978e}
+.v1-top .drill-badge{margin-left:auto}
+.v1-top .syn-tag{color:#8f8b81}
+.v1-timer{display:flex;align-items:baseline;gap:var(--s5);flex-wrap:wrap;padding:var(--s4) 0}
+.v1-timer .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#8f8b81}
+.v1-timer .t{font-family:var(--mono);font-size:56px;font-weight:800;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.v1-timer .sub{font-family:var(--mono);font-size:12px;color:#9b978e}
+.flap-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:var(--s5);align-items:start}
+.flap-panel{background:var(--board2);border:1px solid #2c2a26}
+.flap-panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#9b978e;padding:var(--s3) var(--s4);border-bottom:1px solid #2c2a26}
+.flap{display:flex;align-items:center;gap:0;padding:10px var(--s4);border-top:1px solid #2c2a26;font-family:var(--mono);font-size:15px}
+.flap:first-of-type{border-top:0}
+.flap .cells{display:flex;flex-wrap:wrap;gap:2px}
+.flap .c{background:#100f0e;border:1px solid #2c2a26;min-width:24px;height:30px;display:grid;place-items:center;padding:0 4px;color:var(--chalk);letter-spacing:0}
+.flap .c--amber{background:#241a0e;color:var(--amber);border-color:#3a2c14}
+.flap .c--red{background:#241010;color:var(--red);border-color:#3a1a18}
+.flap .c--green{background:#0f241a;color:var(--green);border-color:#143a2a}
+.flap .st{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:#9b978e;flex:none}
+.v1-rolecol{display:flex;gap:0;padding:0 var(--s4) var(--s2);font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#8f8b81}
+.v1-rolecol span{flex:1}
+.v1-rolecol span:first-child{flex:none;width:88px}
+.res-strip{display:flex;gap:8px;flex-wrap:wrap;padding:var(--s3) var(--s4);border-top:1px solid #2c2a26}
+.res-chip{font-family:var(--mono);font-size:12px;border:1px solid #2c2a26;padding:5px 10px;display:flex;align-items:center;gap:8px;background:#100f0e}
+.res-chip .st{color:#9b978e;font-size:11px}
+.v1-feed{margin-top:var(--s5)}
+.v1-feed .flap{font-size:13px;padding:8px var(--s4)}
+.v1-foot{border-top:1px solid #2c2a26;margin-top:var(--s5);padding:var(--s4) 0 14px;color:#8f8b81;font-size:12px;line-height:1.8}
 
-/* ============ 4. 變體 2：現場任務流（明亮行動端） ============ */
-.v2{
-  --v-bg:#faf7f0;--v-panel:#ffffff;--v-ink:#23272e;--v-dim:#6b7280;
-  --v-line:#e3ddd0;--v-soft:#f4f1e8;--v-red:#c53a1f;--v-ok:#2c7a4b;--v-accent:#23272e;
-  background:var(--v-bg);color:var(--v-ink);
-}
-.v2 :focus-visible{outline:2px solid var(--v-accent);outline-offset:2px}
-.v2 ::selection{background:rgba(197,58,31,.22)}
-.v2-shell{max-width:480px;margin:0 auto;padding:var(--s4) var(--s4) 0}
-.v2-top{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) 0}
-.v2-brand{display:flex;align-items:center;gap:8px;font-weight:800}
-.v2 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
-.v2-drillchip{font-size:var(--t-cap);font-weight:800;color:var(--v-red);border:1.5px solid var(--v-red);border-radius:999px;padding:2px 10px}
-.v2-badge{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);box-shadow:var(--sh-1);padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)}
-.v2-avatar{flex:none;width:48px;height:48px;border-radius:50%;background:var(--v-soft);border:1.5px solid var(--v-line);display:grid;place-items:center;font-weight:800;font-size:var(--t-lg);color:var(--v-red)}
-.v2-bname{font-weight:800;font-size:var(--t-lg)}
-.v2-brole{color:var(--v-dim);font-size:var(--t-sm)}
-.v2-event{background:var(--v-panel);border:2px solid var(--v-red);border-radius:var(--r-l);padding:var(--s4);margin-bottom:var(--s4)}
-.v2-event h1{font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em;margin-bottom:6px}
-.v2-event p{color:var(--v-dim);line-height:1.7;font-size:var(--t-md)}
-.v2-event p b{color:var(--v-red)}
-.v2-card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);box-shadow:var(--sh-1);padding:var(--s4);margin-bottom:var(--s4)}
-.v2-card__t{font-size:var(--t-lg);font-weight:800;margin-bottom:2px}
-.v2-card__sub{color:var(--v-dim);font-size:var(--t-sm);margin-bottom:var(--s3)}
-.v2-steps{list-style:none;padding:0;display:grid;gap:0}
-.v2-step{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3) 0;border-top:1px solid var(--v-line)}
-.v2-step:first-child{border-top:0}
-.v2-dot{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:var(--t-sm);border:2px solid var(--v-line);color:var(--v-dim);margin-top:2px}
-.v2-step--done .v2-dot{background:var(--v-ok);border-color:var(--v-ok);color:#fff}
-.v2-step--done .v2-stxt{text-decoration:line-through;color:var(--v-dim)}
-.v2-step--active{background:rgba(197,58,31,.05);margin:0 calc(-1 * var(--s3));padding:var(--s3);border:1.5px solid var(--v-red);border-radius:var(--r-m)}
-.v2-step--active .v2-dot{border-color:var(--v-red);color:var(--v-red)}
-.v2-stxt{line-height:1.6;font-size:var(--t-md)}
-.v2-step--active .v2-stxt{font-weight:700}
-.v2-stepbtn{margin-top:var(--s2);background:var(--v-red);color:#fff;padding:10px 18px;font-size:var(--t-md)}
-.v2-stepbtn:hover{background:#d8482c}
-.v2-report{background:var(--v-ink);color:#fff;border-radius:var(--r-l);padding:var(--s4);margin-bottom:var(--s4)}
-.v2-report p{color:#c9cfd8;font-size:var(--t-sm);line-height:1.6;margin-bottom:var(--s3)}
-.v2-report p b{color:#fff}
-.v2-bigreport{width:100%;background:#ff5f56;color:#2a0503;font-size:var(--t-lg);font-weight:800;padding:16px;border-radius:12px}
-.v2-bigreport:hover{background:#ff7a72}
-.v2-guide{display:flex;gap:var(--s3);align-items:flex-start}
-.v2-guide svg{flex:none}
-.v2-guide b{font-size:var(--t-lg);font-weight:800}
-.v2-guide p{color:var(--v-dim);font-size:var(--t-sm);line-height:1.7;margin-top:2px}
-.v2-foot{color:var(--v-dim);font-size:var(--t-cap);line-height:1.7}
+/* ===== v2 印出來的工單 ===== */
+.v2{background:var(--paper);color:var(--inkblack);color-scheme:light}
+.v2 :focus-visible{outline:3px solid #c93a2e;outline-offset:3px}
+.v2 ::selection{background:#c93a2e;color:#fff}
+.v2-shell{max-width:620px;margin:0 auto;padding:var(--s6) var(--s4) 0}
+.ticket{background:#fff;border:1px solid #c9c5bb;box-shadow:0 2px 0 #d8d4ca,0 10px 30px rgba(26,25,23,.12);position:relative}
+.ticket::before{content:"";position:absolute;inset:0 0 auto 0;height:8px;background:repeating-linear-gradient(45deg,#c93a2e 0 10px,#fff 10px 20px)}
+.ticket-head{display:flex;align-items:center;gap:12px;padding:26px var(--s5) var(--s4);border-bottom:3px solid var(--inkblack)}
+.ticket-head .no{font-family:var(--mono);font-size:26px;font-weight:800;letter-spacing:.04em}
+.ticket-head .rl{font-family:var(--mono);font-size:13px;color:#5c5850}
+.ticket-head .drill-badge{margin-left:auto}
+.ticket .svc{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:#c93a2e;font-weight:700;padding:10px var(--s5) 0}
+.checklist{padding:var(--s4) var(--s5)}
+.checklist h2{font-family:var(--mono);font-size:12px;letter-spacing:.16em;margin-bottom:var(--s3)}
+.ck{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:start;padding:13px 0;border-top:1.5px dashed #b8b3a8;font-size:17px;line-height:1.6}
+.ck .box{width:26px;height:26px;border:2.5px solid var(--inkblack);margin-top:1px}
+.ck .box--done{background:var(--inkblack);position:relative}
+.ck .box--done::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:18px;font-weight:900}
+.ck .tag{font-family:var(--mono);font-size:11px;color:#5c5850;border:1.5px solid #b8b3a8;padding:1px 7px;border-radius:2px;white-space:nowrap}
+.ck--urgent .txt{font-weight:800}
+.ck--urgent .tag{color:#c93a2e;border-color:#c93a2e}
+.next-station{margin:0 var(--s5) var(--s4);border:3px solid var(--inkblack);padding:var(--s4)}
+.next-station .k{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#5c5850}
+.next-station .v{font-family:var(--serif);font-size:34px;font-weight:900;line-height:1.3;margin-top:4px}
+.next-station .v em{font-style:normal;color:#c93a2e}
+.big-report{display:block;width:calc(100% - 40px);margin:0 var(--s5) var(--s5);padding:24px;font-size:26px;font-weight:900;letter-spacing:.04em;background:var(--inkblack);color:#fff;border:0;border-radius:6px;min-height:84px}
+.big-report:active{transform:translateY(2px)}
+.ticket .foot-strip{border-top:3px solid var(--inkblack);padding:10px var(--s5);font-family:var(--mono);font-size:11px;color:#5c5850;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.v2-foot{margin-top:var(--s5);font-family:var(--mono);font-size:12px;color:#6d675c;line-height:1.8;padding-bottom:var(--s4)}
 
-/* ============ 5. 變體 3：平面圖資源圖（藍圖） ============ */
-.v3{
-  --v-bg:#e9f0f8;--v-panel:#f6f9fc;--v-ink:#17304a;--v-dim:#5a7089;
-  --v-line:#c3d2e2;--v-blue:#1d4e89;--v-red:#c53a1f;--v-green:#2c7a4b;--v-amber:#a06a08;
-  background:var(--v-bg);color:var(--v-ink);
-}
-.v3 :focus-visible{outline:2px solid var(--v-blue);outline-offset:2px}
-.v3 ::selection{background:rgba(29,78,137,.2)}
-.v3-shell{max-width:1160px;margin:0 auto;padding:var(--s4) var(--s5) 0}
-.v3-topbar{display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)}
-.v3-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg)}
-.v3-drillchip{font-size:var(--t-cap);font-weight:800;color:var(--v-red);border:1.5px solid var(--v-red);border-radius:999px;padding:2px 10px}
-.v3-title{font-size:var(--t-xl);font-weight:800;letter-spacing:-0.02em}
-.v3-user{margin-left:auto;color:var(--v-dim);font-size:var(--t-sm)}
-.v3 .syn-tag{color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
-.v3-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:var(--s5);align-items:start}
-.v3-col{display:grid;gap:var(--s4)}
-.v3 .card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s4)}
-.v3 .card h2{font-size:var(--t-lg);font-weight:800;margin-bottom:var(--s3)}
-.v3-planwrap{overflow-x:auto;padding:var(--s3)}
-.v3-plan{min-width:640px;width:100%;height:auto;display:block}
-.v3-legend{display:grid;gap:var(--s2)}
-.v3-lg{display:flex;align-items:center;gap:10px;font-size:var(--t-sm)}
-.v3-lg svg{flex:none}
-.v3-lg b{font-weight:700}
-.v3-lg span{color:var(--v-dim);margin-left:auto;font-variant-numeric:tabular-nums}
-.v3-lgh{margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--v-line);font-size:var(--t-cap);font-weight:800;color:var(--v-dim);letter-spacing:.08em}
-.v3-rst{display:flex;flex-wrap:wrap;gap:var(--s3)}
-.v3-rsi{flex:1 1 200px;display:flex;align-items:center;gap:10px;border:1px solid var(--v-line);border-radius:var(--r-m);padding:10px 12px}
-.v3-rsi svg{flex:none}
-.v3-rname{font-size:var(--t-sm);font-weight:700}
-.v3-rst2{margin-left:auto;font-size:var(--t-cap);font-weight:800;white-space:nowrap}
-.rst2--ok{color:var(--v-green)}
-.rst2--run{color:var(--v-blue)}
-.rst2--warn{color:var(--v-amber)}
-.v3-note{color:var(--v-dim);font-size:var(--t-sm);line-height:1.7}
-.v3-foot{color:var(--v-dim);font-size:var(--t-cap);margin-top:var(--s5);line-height:1.7}
+/* ===== v3 catalog 平面圖 ===== */
+.v3{color:var(--chalk);color-scheme:dark}
+.v3 :focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.v3-shell{max-width:1160px;margin:0 auto;padding:0 var(--s4)}
+.v3-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:var(--s4) 0;border-bottom:1px solid #2c2a26}
+.v3-top h1{font-family:var(--serif);font-size:22px;font-weight:700}
+.v3-top .sub{font-family:var(--mono);font-size:12px;color:#9b978e}
+.v3-top .drill-badge{margin-left:auto}
+.v3-top .syn-tag{color:#8f8b81}
+.v3-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:var(--s5);align-items:start;padding:var(--s5) 0}
+.v3-plan{background:var(--board2);border:1px solid #2c2a26;padding:12px}
+.v3-planwrap{overflow-x:auto}
+.v3-plan svg{min-width:720px;width:100%;height:auto;display:block}
+.pin{fill:var(--board2);stroke:var(--chalk);stroke-width:2}
+.pin--red{stroke:var(--red)}
+.pin--green{stroke:var(--green)}
+.p-lbl{font-family:var(--mono);font-size:11px;fill:#8f8b81}
+.p-lbl--red{fill:var(--red);font-weight:700}
+.p-lbl--big{fill:var(--chalk);font-size:13px;font-weight:700}
+.v3-side .res{border:1px solid #2c2a26;background:var(--board2);margin-bottom:var(--s4)}
+.v3-side .res h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#8f8b81;padding:var(--s3) var(--s4);border-bottom:1px solid #2c2a26}
+.v3-rrow{display:flex;align-items:center;gap:10px;padding:10px var(--s4);border-top:1px solid #2c2a26;font-family:var(--mono);font-size:12px}
+.v3-rrow:first-of-type{border-top:0}
+.v3-rrow .code{font-weight:700}
+.v3-rrow .hue{width:12px;height:12px;flex:none;border:1px solid rgba(242,239,233,.4)}
+.v3-rrow .hue--fire{background:var(--red);border-color:var(--red)}
+.v3-rrow .hue--aed{background:var(--amber);border-color:var(--amber)}
+.v3-rrow .hue--med{background:var(--green);border-color:var(--green)}
+.v3-rrow .st{margin-left:auto;color:#9b978e}
+.v3-rrow .st--use{color:var(--amber);font-weight:700}
+.v3-pin{border:1px solid #2c2a26;background:var(--board2)}
+.v3-pin h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#8f8b81;padding:var(--s3) var(--s4);border-bottom:1px solid #2c2a26}
+.v3-pin li{list-style:none;display:flex;gap:10px;padding:10px var(--s4);border-top:1px solid #2c2a26;font-size:13px;font-family:var(--mono)}
+.v3-pin li:first-of-type{border-top:0}
+.v3-pin .no{color:var(--amber);font-weight:700;flex:none}
+.v3-foot{border-top:1px solid #2c2a26;padding:var(--s4) 0 14px;color:#8f8b81;font-size:12px;line-height:1.8}
 
-/* ============ 6. 響應式 ============ */
+/* ===== 響應式 ===== */
 @media (max-width:960px){
-  .v3-grid{grid-template-columns:1fr}
-  .v1-grid{grid-template-columns:1fr}
-  .v1-shell,.v3-shell{padding-left:var(--s4);padding-right:var(--s4)}
-  .v1-actions{width:100%;margin-left:0}
+  .flap-grid,.v3-grid{grid-template-columns:1fr}
+  .v1-timer .t{font-size:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  .drill-badge{animation:none}
 }
 </style>
 </head>
@@ -214,349 +161,211 @@ img,svg{vertical-align:middle}
 <div class="proto-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
 
 <main>
-<!-- ================= 變體 1：演練指揮中心（暗色戰情室） ================= -->
 <section class="variant v1" data-variant="1">
   <div class="v1-shell">
-    <header class="v1-topbar">
-      <div class="v1-brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="currentColor" opacity=".14" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5v5l3.2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        DrillOps <small>演練指揮中心</small>
+    <header class="v1-top">
+      <div>
+        <div class="v1-brand">DRILLOPS 演練指揮中心</div>
+        <div class="v1-scene">年度嘉年華・市立體育館 2F 走廊冒煙（演練）· 2026-11-14 14:02 開演</div>
       </div>
-      <span class="v1-live"><i aria-hidden="true"></i>演練中</span>
-      <span class="v1-timer">00:14:32</span>
-      <span class="v1-scene">情境 <b>體育館 2F 煙霧 · 年度嘉年華</b></span>
-      <div class="v1-actions">
-        <span class="syn-tag">合成資料</span>
-        <button class="btn btn-ghost">演練暫停</button>
-        <button class="btn btn-primary">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
-          推進下一事件
-        </button>
-      </div>
-    </header>
-
-    <div class="v1-grid">
-      <div class="v1-col">
-        <article class="card">
-          <h2>即時事件流</h2>
-          <ul class="v1-feed">
-            <li>
-              <div class="v1-ft"><span class="v1-ftime">T+00:02</span><span class="v1-frole rp-sc">疏散組</span><span class="v1-ftxt">回報 2F 走廊冒煙，現場已啟動擴音疏散</span></div>
-            </li>
-            <li class="li--crit" style="border-left-color:var(--v-red)">
-              <div class="v1-ft"><span class="v1-ftime">T+00:05</span><span class="v1-frole rp-sc">指揮中心</span><span class="v1-ftxt">確認情境成立：煙霧等級 2，啟動疏散 SOP 全區</span></div>
-            </li>
-            <li class="li--ok">
-              <div class="v1-ft"><span class="v1-ftime">T+00:08</span><span class="v1-frole rp-qi">器材組</span><span class="v1-ftxt">AED-02 調派至 2F 服務台，已由陳同學領取</span></div>
-            </li>
-            <li class="li--ok">
-              <div class="v1-ft"><span class="v1-ftime">T+00:11</span><span class="v1-frole rp-jj">急救組</span><span class="v1-ftxt">集合點 B 就緒，已收 2 隊疏散人員</span></div>
-            </li>
-            <li class="li--run">
-              <div class="v1-ft"><span class="v1-ftime">T+00:13</span><span class="v1-frole rp-tb">通報員</span><span class="v1-ftxt">對外通報預演（假想 119 回報）進行中</span></div>
-            </li>
-            <li class="li--warn" style="border-left-color:var(--v-warn)">
-              <div class="v1-ft"><span class="v1-ftime">T+00:14</span><span class="v1-frole rp-qi">器材組</span><span class="v1-ftxt">警告：1 支擴音器電量不足，備用調派中</span></div>
-            </li>
-          </ul>
-        </article>
-
-        <article class="card">
-          <h2>資源狀態</h2>
-          <div class="v1-reslist">
-            <div class="v1-resitem">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5" fill="#ff5f56" opacity=".18" stroke="#ff5f56" stroke-width="1.8"/><path d="M12 8v5" stroke="#ff5f56" stroke-width="2.2" stroke-linecap="round"/></svg>
-              <span class="v1-resname">消防箱 ×4</span><span class="v1-resst rs--ok">正常</span>
-            </div>
-            <div class="v1-resitem">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3" fill="#3fd07f" opacity=".15" stroke="#3fd07f" stroke-width="1.8"/><path d="M12 8v8M8 12h8" stroke="#3fd07f" stroke-width="2.2" stroke-linecap="round"/></svg>
-              <span class="v1-resname">AED ×2</span><span class="v1-resst rs--run">1 使用中 · 1 正常</span>
-            </div>
-            <div class="v1-resitem">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2.5" fill="#ffb454" opacity=".15" stroke="#ffb454" stroke-width="1.8"/><path d="M9 9l6 6M15 9l-6 6" stroke="#ffb454" stroke-width="2" stroke-linecap="round"/></svg>
-              <span class="v1-resname">急救包 ×3</span><span class="v1-resst rs--ok">正常</span>
-            </div>
-            <div class="v1-resitem">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10v4a1.5 1.5 0 001.5 1.5H8l5 4V4.5L8 8.5H5.5A1.5 1.5 0 004 10z" fill="#ffb454" opacity=".18" stroke="#ffb454" stroke-width="1.8" stroke-linejoin="round"/><path d="M16.5 9.5a4 4 0 010 5" stroke="#ffb454" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <span class="v1-resname">擴音器 ×2</span><span class="v1-resst rs--warn">1 缺電</span>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <div class="v1-col">
-        <article class="card">
-          <h2>任務板（依角色）</h2>
-          <div class="v1-board">
-            <div class="v1-bgroup">
-              <div class="v1-bhead"><span class="v1-frole rp-tb">通報員</span><span class="v1-bcount">2 任務 · 1 完成</span></div>
-              <div class="v1-btasks">
-                <span class="v1-btask">記錄事件時間軸 <span class="v1-bst bst--ok">完成</span></span>
-                <span class="v1-btask">對外通報預演（假想 119） <span class="v1-bst bst--run">執行中</span></span>
-              </div>
-            </div>
-            <div class="v1-bgroup">
-              <div class="v1-bhead"><span class="v1-frole rp-jj">急救組</span><span class="v1-bcount">3 任務 · 2 完成</span></div>
-              <div class="v1-btasks">
-                <span class="v1-btask">集合點 B 整備 <span class="v1-bst bst--ok">完成</span></span>
-                <span class="v1-btask">AED-02 調派 2F 服務台 <span class="v1-bst bst--ok">完成</span></span>
-                <span class="v1-btask">模擬傷患分級（3 人） <span class="v1-bst bst--run">執行中</span></span>
-              </div>
-            </div>
-            <div class="v1-bgroup">
-              <div class="v1-bhead"><span class="v1-frole rp-sc">疏散組</span><span class="v1-bcount">3 任務 · 1 完成</span></div>
-              <div class="v1-btasks">
-                <span class="v1-btask">2F 走廊清空確認 <span class="v1-bst bst--ok">完成</span></span>
-                <span class="v1-btask">觀眾區引導至出口 B <span class="v1-bst bst--run">執行中</span></span>
-                <span class="v1-btask">後台人員逐一點名 <span class="v1-bst bst--warn">延遲</span></span>
-              </div>
-            </div>
-            <div class="v1-bgroup">
-              <div class="v1-bhead"><span class="v1-frole rp-qi">器材組</span><span class="v1-bcount">2 任務 · 0 完成</span></div>
-              <div class="v1-btasks">
-                <span class="v1-btask">備用擴音器調派 <span class="v1-bst bst--run">執行中</span></span>
-                <span class="v1-btask">消防箱 2F-03 取用演練 <span class="v1-bst bst--wait">待處理</span></span>
-              </div>
-            </div>
-          </div>
-        </article>
-      </div>
-    </div>
-
-    <p class="v1-foot">情境、人員、任務與資源狀態皆為演練用合成資料，非真實事件；本系統僅供演練，不介入真實緊急應變。</p>
-  </div>
-</section>
-
-<!-- ================= 變體 2：現場任務流（行動端大按鈕） ================= -->
-<section class="variant v2" data-variant="2" hidden>
-  <div class="v2-shell">
-    <header class="v2-top">
-      <div class="v2-brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="currentColor" opacity=".14" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5v5l3.2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        DrillOps
-      </div>
-      <span class="v2-drillchip">演練中</span>
+      <span class="drill-badge">演練中 DRILL</span>
       <span class="syn-tag">合成資料</span>
     </header>
 
-    <div class="v2-badge">
-      <span class="v2-avatar" aria-hidden="true">陳</span>
+    <div class="v1-timer">
+      <span class="lbl">演練計時 DRILL CLOCK</span>
+      <span class="t">00:14:32</span>
+      <span class="sub">T0＝煙霧訊號 14:02:10 · 預定結束 14:35 · 4 組全數到位</span>
+    </div>
+
+    <div class="flap-grid">
       <div>
-        <div class="v2-bname">陳學勤</div>
-        <div class="v2-brole">疏散組 · 工號 D-207（演練身份證）</div>
-      </div>
-    </div>
-
-    <article class="v2-event">
-      <h1>2F 走廊冒煙</h1>
-      <p>情境 <b>T+00:02</b> 觸發。請依疏散 SOP 執行當前步驟，每完成一步立即回報；<b>不要進入冒煙區</b>。</p>
-    </article>
-
-    <article class="v2-card">
-      <h2 class="v2-card__t">疏散 SOP</h2>
-      <p class="v2-card__sub">第 3 / 5 步進行中 · 完成 2 步</p>
-      <ol class="v2-steps">
-        <li class="v2-step v2-step--done">
-          <span class="v2-dot"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg></span>
-          <span class="v2-stxt">停止手中工作，確認所在位置</span>
-        </li>
-        <li class="v2-step v2-step--done">
-          <span class="v2-dot"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7-8"/></svg></span>
-          <span class="v2-stxt">啟動擴音，引導觀眾離開 2F 走廊</span>
-        </li>
-        <li class="v2-step v2-step--active">
-          <span class="v2-dot">3</span>
-          <div>
-            <span class="v2-stxt">帶隊前往集合點 B，途中不搭電梯、不返回取物</span>
-            <div><button class="btn v2-stepbtn">完成此步</button></div>
+        <div class="flap-panel">
+          <h3>角色任務板 ROLE TASKS</h3>
+          <div class="v1-rolecol"><span>角色</span><span>任務</span><span>狀態</span></div>
+          <div class="flap">
+            <span class="cells"><span class="c">通</span><span class="c">報</span><span class="c">員</span></span>
+            <span class="cells"><span class="c">通</span><span class="c">報</span><span class="c">內</span><span class="c">容</span><span class="c">已</span><span class="c">預</span><span class="c">填</span></span>
+            <span class="st"><i class="lamp lamp--done"></i>完成 14:03</span>
           </div>
-        </li>
-        <li class="v2-step">
-          <span class="v2-dot">4</span>
-          <span class="v2-stxt">到集合點後逐一點名，回報未到人員</span>
-        </li>
-        <li class="v2-step">
-          <span class="v2-dot">5</span>
-          <span class="v2-stxt">待命，等候指揮中心下一指令</span>
-        </li>
-      </ol>
-    </article>
+          <div class="flap">
+            <span class="cells"><span class="c">救</span><span class="c">急</span><span class="c">組</span></span>
+            <span class="cells"><span class="c c--amber">候</span><span class="c c--amber">命</span><span class="c c--amber">·</span><span class="c c--amber">A</span><span class="c c--amber">E</span><span class="c c--amber">D</span><span class="c c--amber">取</span><span class="c c--amber">用</span></span>
+            <span class="st"><i class="lamp lamp--run"></i>進行中</span>
+          </div>
+          <div class="flap">
+            <span class="cells"><span class="c">疏</span><span class="c">散</span><span class="c">組</span></span>
+            <span class="cells"><span class="c c--amber">引</span><span class="c c--amber">導</span><span class="c c--amber">2</span><span class="c c--amber">F</span><span class="c c--amber">觀</span><span class="c c--amber">眾</span><span class="c c--amber">→</span><span class="c c--amber">集</span><span class="c c--amber">合</span><span class="c c--amber">點</span><span class="c c--amber">B</span></span>
+            <span class="st"><i class="lamp lamp--urg"></i>緊急</span>
+          </div>
+          <div class="flap">
+            <span class="cells"><span class="c">器</span><span class="c">材</span><span class="c">組</span></span>
+            <span class="cells"><span class="c">提</span><span class="c">拿</span><span class="c">消</span><span class="c">防</span><span class="c">箱</span><span class="c">F</span><span class="c">E</span><span class="c">-</span><span class="c">2</span><span class="c">F</span><span class="c">-</span><span class="c">0</span><span class="c">1</span></span>
+            <span class="st"><i class="lamp lamp--run"></i>進行中</span>
+          </div>
+        </div>
 
-    <div class="v2-report">
-      <p>回報預填：<b>疏散組 D-207 · 第 3 步完成</b>，已帶 2 隊至集合點 B，途中無異常。</p>
-      <button class="btn v2-bigreport">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4a1.5 1.5 0 001.5 1.5H8l5 4V4.5L8 8.5H5.5A1.5 1.5 0 004 10z"/><path d="M16.5 9.5a4 4 0 010 5"/></svg>
-        通報指揮中心
-      </button>
-    </div>
-
-    <article class="v2-card">
-      <h2 class="v2-card__t">下一站指引</h2>
-      <div class="v2-guide">
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-6.5-5.2-6.5-10A6.5 6.5 0 0112 4.5 6.5 6.5 0 0118.5 11c0 4.8-6.5 10-6.5 10z" fill="#c53a1f" opacity=".15" stroke="#c53a1f" stroke-width="1.8"/><circle cx="12" cy="11" r="2.4" fill="#c53a1f"/></svg>
-        <div>
-          <b>集合點 B（體育館北側廣場）</b>
-          <p>沿 2F 樓梯 A 下行 → 一樓中廳向左 → 出口 B 直行 30 公尺。預估步行 2 分鐘。</p>
+        <div class="flap-panel v1-feed">
+          <h3>事件板 EVENT BOARD</h3>
+          <div class="flap"><span class="st" style="margin-left:0"><i class="lamp lamp--done"></i>14:02:10 煙霧訊號啟動（2F 東走廊）</span></div>
+          <div class="flap"><span class="st" style="margin-left:0"><i class="lamp lamp--done"></i>14:03:02 通報 119（演練模式·不派車）</span></div>
+          <div class="flap"><span class="st" style="margin-left:0"><i class="lamp lamp--run"></i>14:05:47 疏散組開始引導 2F 觀眾，經樓梯 T2 下至 1F</span></div>
+          <div class="flap"><span class="st" style="margin-left:0"><i class="lamp lamp--run"></i>14:12:30 器材組就位於消防箱 FE-2F-01</span></div>
+          <div class="flap"><span class="st" style="margin-left:0"><i class="lamp lamp--urg"></i>14:16:05 疏散組回報：2F 看台 C 區尚有觀眾未到位</span></div>
         </div>
       </div>
-    </article>
 
-    <p class="v2-foot">情境、人員與任務皆為演練用合成資料，非真實事件；本介面僅供演練，不介入真實緊急應變。</p>
-  </div>
-</section>
-
-<!-- ================= 變體 3：平面圖資源圖（藍圖） ================= -->
-<section class="variant v3" data-variant="3" hidden>
-  <div class="v3-shell">
-    <header class="v3-topbar">
-      <div class="v3-brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" opacity=".12"/><path d="M2.5 9h19M2.5 15h19M9 2.5v19M15 2.5v19" stroke="currentColor" stroke-width="1.4"/></svg>
-        DrillOps
-        <span class="v3-drillchip">演練中</span>
-      </div>
-      <h1 class="v3-title">體育館平面圖 · 資源與站位</h1>
-      <span class="v3-user">年度嘉年華 · 2F/1F（示意座標）</span>
-      <span class="syn-tag">合成資料</span>
-    </header>
-
-    <div class="v3-grid">
-      <div class="v3-col">
-        <article class="card">
-          <h2>平面圖（2F 上 / 1F 下）</h2>
-          <div class="v3-planwrap">
-            <svg class="v3-plan" viewBox="0 0 900 560" role="img" aria-label="體育館平面圖：2F 與 1F 分區、出口、資源、疏散路線與人員站位">
-              <defs>
-                <marker id="v3arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5 0 10z" fill="#1d4e89"/></marker>
-              </defs>
-              <!-- 外牆 -->
-              <rect x="20" y="20" width="860" height="520" fill="none" stroke="#1d4e89" stroke-width="4"/>
-              <!-- 2F/1F 分隔 -->
-              <line x1="20" y1="230" x2="880" y2="230" stroke="#1d4e89" stroke-width="2.5" stroke-dasharray="10 6"/>
-              <text x="34" y="44" font-size="15" font-weight="700" fill="#1d4e89" font-family="monospace">2F</text>
-              <text x="34" y="254" font-size="15" font-weight="700" fill="#1d4e89" font-family="monospace">1F</text>
-              <!-- 2F 分區 -->
-              <rect x="60" y="70" width="200" height="130" fill="rgba(29,78,137,.05)" stroke="#5a7089" stroke-width="1.5"/>
-              <text x="72" y="92" font-size="13" fill="#5a7089">控制室</text>
-              <rect x="640" y="70" width="200" height="130" fill="rgba(29,78,137,.05)" stroke="#5a7089" stroke-width="1.5"/>
-              <text x="652" y="92" font-size="13" fill="#5a7089">設備間</text>
-              <rect x="300" y="70" width="300" height="130" fill="rgba(197,58,31,.07)" stroke="#c53a1f" stroke-width="2" stroke-dasharray="6 4"/>
-              <text x="312" y="92" font-size="13" font-weight="700" fill="#c53a1f">2F 走廊（情境：冒煙）</text>
-              <text x="450" y="140" font-size="26" fill="#c53a1f" opacity=".55">〜 〜 〜</text>
-              <!-- 樓梯 -->
-              <rect x="540" y="110" width="60" height="90" fill="none" stroke="#5a7089" stroke-width="1.5"/>
-              <line x1="548" y1="125" x2="592" y2="125" stroke="#5a7089" stroke-width="1"/><line x1="548" y1="140" x2="592" y2="140" stroke="#5a7089" stroke-width="1"/><line x1="548" y1="155" x2="592" y2="155" stroke="#5a7089" stroke-width="1"/><line x1="548" y1="170" x2="592" y2="170" stroke="#5a7089" stroke-width="1"/><line x1="548" y1="185" x2="592" y2="185" stroke="#5a7089" stroke-width="1"/>
-              <text x="552" y="218" font-size="12" fill="#5a7089">樓梯 A</text>
-              <!-- 1F 分區 -->
-              <rect x="60" y="270" width="420" height="240" fill="rgba(29,78,137,.05)" stroke="#5a7089" stroke-width="1.5"/>
-              <text x="72" y="292" font-size="13" fill="#5a7089">觀眾區（3,200 席）</text>
-              <path d="M90 330 q180 -34 360 0M90 370 q180 -34 360 0M90 410 q180 -34 360 0M90 450 q180 -34 360 0" fill="none" stroke="#c3d2e2" stroke-width="2"/>
-              <rect x="560" y="270" width="150" height="240" fill="rgba(29,78,137,.05)" stroke="#5a7089" stroke-width="1.5"/>
-              <text x="572" y="292" font-size="13" fill="#5a7089">後台</text>
-              <rect x="730" y="270" width="130" height="240" fill="rgba(29,78,137,.05)" stroke="#5a7089" stroke-width="1.5"/>
-              <text x="742" y="292" font-size="13" fill="#5a7089">服務台</text>
-              <!-- 出口 -->
-              <g font-size="13" font-weight="700" fill="#1d4e89">
-                <rect x="20" y="330" width="14" height="52" fill="#1d4e89"/>
-                <text x="40" y="360">出口 A</text>
-                <rect x="430" y="532" width="60" height="8" fill="#1d4e89"/>
-                <text x="418" y="524">出口 B（集合點 B 方向）</text>
-                <rect x="20" y="80" width="14" height="52" fill="#1d4e89"/>
-                <text x="40" y="110">出口 C</text>
-              </g>
-              <!-- 資源：消防箱 ×4 -->
-              <g fill="#c53a1f">
-                <rect x="272" y="180" width="14" height="14"/><text x="292" y="192" font-size="11" fill="#5a7089">消防箱 2F-01</text>
-                <rect x="612" y="180" width="14" height="14"/><text x="632" y="192" font-size="11" fill="#5a7089">2F-02</text>
-                <rect x="120" y="470" width="14" height="14"/><text x="140" y="482" font-size="11" fill="#5a7089">1F-01</text>
-                <rect x="700" y="470" width="14" height="14"/><text x="720" y="482" font-size="11" fill="#5a7089">1F-02</text>
-              </g>
-              <!-- 資源：AED ×2 -->
-              <g stroke="#2c7a4b" stroke-width="3" stroke-linecap="round">
-                <path d="M366 188h12M372 182v12"/><path d="M766 478h12M772 472v12"/>
-              </g>
-              <text x="390" y="192" font-size="11" fill="#5a7089">AED-01</text>
-              <text x="786" y="486" font-size="11" fill="#5a7089">AED-02</text>
-              <!-- 資源：急救包 ×2 -->
-              <g fill="none" stroke="#a06a08" stroke-width="2">
-                <rect x="160" y="300" width="16" height="16" rx="2"/><path d="M168 305v6M165 308h6"/>
-                <rect x="846" y="330" width="16" height="16" rx="2"/><path d="M854 335v6M851 338h6"/>
-              </g>
-              <text x="120" y="330" font-size="11" fill="#5a7089">急救包</text>
-              <text x="820" y="360" font-size="11" fill="#5a7089">急救包</text>
-              <!-- 疏散路線 -->
-              <path d="M450 205 C 470 250, 470 300, 460 380 S 455 480, 458 530" fill="none" stroke="#1d4e89" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#v3arrow)"/>
-              <path d="M100 300 C 80 320, 40 330, 28 350" fill="none" stroke="#1d4e89" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#v3arrow)"/>
-              <text x="480" y="300" font-size="12" font-weight="700" fill="#1d4e89">疏散路線 ①（主）</text>
-              <text x="34" y="420" font-size="12" font-weight="700" fill="#1d4e89">疏散路線 ②</text>
-              <!-- 人員站位 -->
-              <g font-size="12" font-weight="700">
-                <circle cx="160" cy="120" r="7" fill="#58a6ff"/><text x="172" y="124" fill="#5a7089">通報員</text>
-                <circle cx="800" cy="120" r="7" fill="#3fd07f"/><text x="740" y="150" fill="#5a7089">急救組</text>
-                <circle cx="430" cy="160" r="7" fill="#ff5f56"/><text x="442" y="164" fill="#5a7089">疏散組（2 人）</text>
-                <circle cx="660" cy="500" r="7" fill="#ffb454"/><text x="672" y="504" fill="#5a7089">器材組</text>
-              </g>
-            </svg>
+      <div>
+        <div class="flap-panel">
+          <h3>資源狀態 RESOURCES</h3>
+          <div class="res-strip">
+            <span class="res-chip"><i class="lamp lamp--run"></i>FE-2F-01 消防箱<span class="st">使用中</span></span>
+            <span class="res-chip"><i class="lamp lamp--idle"></i>AED-02 二樓服務台<span class="st">待命</span></span>
+            <span class="res-chip"><i class="lamp lamp--done"></i>急救包 1F-02<span class="st">正常</span></span>
+            <span class="res-chip"><i class="lamp lamp--idle"></i>擴音器 M-3<span class="st">正常</span></span>
+            <span class="res-chip"><i class="lamp lamp--done"></i>疏散廣播 BGM-1F<span class="st">已完成</span></span>
           </div>
-          <p class="v3-note">疏散路線：主路線 ① 經樓梯 A 至一樓中廳、出口 B 至集合點 B；路線 ② 經出口 A 至西側停車場。冒煙區（2F 走廊）以紅框虛線標示，所有路線避開該區。</p>
-        </article>
-      </div>
-
-      <div class="v3-col">
-        <article class="card">
-          <h2>圖例 · 資源</h2>
-          <div class="v3-legend">
-            <div class="v3-lg"><svg width="14" height="14" aria-hidden="true"><rect width="14" height="14" fill="#c53a1f"/></svg><b>消防箱</b><span>×4</span></div>
-            <div class="v3-lg"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8M8 4v8" stroke="#2c7a4b" stroke-width="3" stroke-linecap="round"/></svg><b>AED</b><span>×2</span></div>
-            <div class="v3-lg"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#a06a08" stroke-width="2"/><path d="M8 5v6M5 8h6" stroke="#a06a08" stroke-width="2"/></svg><b>急救包</b><span>×2</span></div>
-            <div class="v3-lg"><svg width="22" height="10" aria-hidden="true"><path d="M1 5h20" stroke="#1d4e89" stroke-width="2.5" stroke-dasharray="6 4"/></svg><b>疏散路線</b><span>2 條</span></div>
-            <div class="v3-lg"><svg width="16" height="16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" fill="none" stroke="#c53a1f" stroke-width="2" stroke-dasharray="4 3"/></svg><b>情境影響區</b><span>2F 走廊</span></div>
+        </div>
+        <div class="flap-panel" style="margin-top:var(--s4)">
+          <h3>通報預填（119 · 演練模式）</h3>
+          <div style="padding:var(--s4);font-family:var(--mono);font-size:12px;line-height:2">
+            地址：市立體育館 2F 東走廊<br>
+            狀況：冒煙（演練煙霧機，無明火）<br>
+            人員：現場約 1,200 人，疏散中<br>
+            聯絡：指揮中心 分機 102 · 陳怡君
           </div>
-          <h3 class="v3-lgh">人員站位（演練身分）</h3>
-          <div class="v3-legend">
-            <div class="v3-lg"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#58a6ff"/></svg><b>通報員</b><span>控制室</span></div>
-            <div class="v3-lg"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#3fd07f"/></svg><b>急救組</b><span>服務台</span></div>
-            <div class="v3-lg"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#ff5f56"/></svg><b>疏散組</b><span>2F 走廊 ×2</span></div>
-            <div class="v3-lg"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#ffb454"/></svg><b>器材組</b><span>設備間</span></div>
-          </div>
-        </article>
-
-        <article class="card">
-          <h2>資源狀態</h2>
-          <div class="v3-rst">
-            <div class="v3-rsi">
-              <svg width="18" height="18" aria-hidden="true"><rect width="14" height="14" x="2" y="2" fill="#c53a1f"/></svg>
-              <span class="v3-rname">消防箱 2F-01 / 2F-02</span><span class="v3-rst2 rst2--ok">正常</span>
-            </div>
-            <div class="v3-rsi">
-              <svg width="18" height="18" aria-hidden="true"><rect width="14" height="14" x="2" y="2" fill="#c53a1f"/></svg>
-              <span class="v3-rname">消防箱 1F-01 / 1F-02</span><span class="v3-rst2 rst2--ok">正常</span>
-            </div>
-            <div class="v3-rsi">
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 9h8M9 5v8" stroke="#2c7a4b" stroke-width="3" stroke-linecap="round"/></svg>
-              <span class="v3-rname">AED-02</span><span class="v3-rst2 rst2--run">調派中</span>
-            </div>
-            <div class="v3-rsi">
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 9h8M9 5v8" stroke="#2c7a4b" stroke-width="3" stroke-linecap="round"/></svg>
-              <span class="v3-rname">AED-01</span><span class="v3-rst2 rst2--ok">正常</span>
-            </div>
-          </div>
-        </article>
+        </div>
       </div>
     </div>
 
-    <p class="v3-foot">平面、資源位置與人員站位皆為演練用合成資料（示意座標，非實際建築圖）；本圖僅供演練，不介入真實緊急應變。</p>
+    <footer class="v1-foot">本頁為疏散演練之合成情境與合成人員、時間；「演練中」全程有效。DrillOps 定位為演練調度，不介入真實緊急應變，真實事件請撥 119。本原型僅供選題評審。</footer>
+  </div>
+</section>
+
+<section class="variant v2" data-variant="2" hidden>
+  <div class="v2-shell">
+    <div class="ticket">
+      <div class="ticket-head">
+        <div>
+          <div class="no">工單 D-207</div>
+          <div class="rl">疏散組 · 陳學勤 · 14:05 領取</div>
+        </div>
+        <span class="drill-badge">演練中</span>
+      </div>
+      <div class="svc">任務：2F 看台 C 區 疏散與點名</div>
+      <div class="checklist">
+        <h2>SOP CHECKLIST · 疏散標準作業</h2>
+        <div class="ck"><span class="box box--done"></span><span class="txt">不搭電梯；引導觀眾走樓梯 T2、T3</span><span class="tag">已執行</span></div>
+        <div class="ck"><span class="box box--done"></span><span class="txt">提醒用衣袖遮口鼻、不返回取物</span><span class="tag">已執行</span></div>
+        <div class="ck ck--urgent"><span class="box"></span><span class="txt">至集合點 B 逐一點名，回報未到人員名單</span><span class="tag">進行中</span></div>
+        <div class="ck"><span class="box"></span><span class="txt">C 區看台椅下、洗手間逐間確認</span><span class="tag">待執行</span></div>
+        <div class="ck"><span class="box"></span><span class="txt">點名完成後向指揮中心口頭回報「C 區清點完畢」</span><span class="tag">待執行</span></div>
+      </div>
+      <div class="next-station">
+        <div class="k">下一站 NEXT STATION</div>
+        <div class="v">集合點 <em>B</em>（體育館西側騎樓）</div>
+      </div>
+      <button class="big-report">通報指揮中心</button>
+      <div class="foot-strip">
+        <span>年度嘉年華疏散演練 · 14:02 啟動</span>
+        <span>工單僅供演練 · 合成資料</span>
+      </div>
+    </div>
+    <footer class="v2-foot">工單為演練現場人員之手持單（示意），人員與時間為合成資料。SOP 用語參照常見疏散演練流程；不介入真實緊急應變。本原型僅供選題評審。</footer>
+  </div>
+</section>
+
+<section class="variant v3" data-variant="3" hidden>
+  <div class="v3-shell">
+    <header class="v3-top">
+      <h1>平面圖與資源</h1>
+      <span class="sub">市立體育館 2F / 1F · 疏散演練</span>
+      <span class="drill-badge">演練中 DRILL</span>
+      <span class="syn-tag">合成資料</span>
+    </header>
+    <div class="v3-grid">
+      <div class="v3-plan">
+        <div class="v3-planwrap">
+          <svg viewBox="0 0 760 560" role="img" aria-label="體育館平面圖：2F 東走廊冒煙，觀眾經樓梯 T2 疏散至 1F，再引導至西側集合點 B；資源以色塊代碼標出">
+            <g fill="none" stroke="rgba(242,239,233,.55)" stroke-width="1.5">
+              <rect x="60" y="40" width="640" height="200"/>
+              <rect x="60" y="300" width="640" height="200"/>
+              <line x1="300" y1="40" x2="300" y2="240"/>
+              <line x1="460" y1="40" x2="460" y2="240"/>
+              <line x1="120" y1="300" x2="120" y2="500"/>
+              <line x1="420" y1="300" x2="420" y2="500"/>
+            </g>
+            <g font-family="monospace" font-size="11" fill="#9b978e">
+              <text x="72" y="62">2F</text>
+              <text x="455" y="62">2F 東走廊（煙霧源）</text>
+              <text x="72" y="322">1F</text>
+              <text x="130" y="322">大廳</text>
+              <text x="432" y="322">服務台</text>
+            </g>
+            <rect x="560" y="70" width="110" height="60" fill="none" stroke="var(--red)" stroke-width="2" stroke-dasharray="5 4"/>
+            <text class="p-lbl--red" x="566" y="145">煙霧源（演練煙霧機）</text>
+            <path d="M615 130 L615 170 L560 225 L560 240" fill="none" stroke="var(--amber)" stroke-width="3"/>
+            <path d="M560 240 L560 300 L420 380 L240 380 L120 380" fill="none" stroke="var(--chalk)" stroke-width="3" stroke-dasharray="10 6"/>
+            <path d="M120 380 L60 420" fill="none" stroke="var(--green)" stroke-width="4"/>
+            <g>
+              <circle class="pin" cx="300" cy="40" r="6"/>
+              <text class="p-lbl" x="308" y="36">出口 A（2F）</text>
+              <circle class="pin--green pin" cx="460" cy="40" r="6"/>
+              <text class="p-lbl" x="440" y="26" fill="var(--green)">出口 B（2F 樓梯 T2 頂）</text>
+              <circle class="pin" cx="60" cy="500" r="6"/>
+              <text class="p-lbl" x="72" y="518">出口 C（1F 大門）</text>
+            </g>
+            <g>
+              <circle class="pin--green pin" cx="60" cy="420" r="9"/>
+              <text class="p-lbl--big" x="30" y="446" fill="var(--green)">集合點 B（西側騎樓）</text>
+            </g>
+            <g>
+              <rect x="500" y="150" width="14" height="14" fill="var(--red)"/>
+              <text class="p-lbl--red" x="522" y="162">FE-2F-01 消防箱（使用中）</text>
+              <rect x="445" y="360" width="14" height="14" fill="var(--amber)"/>
+              <text class="p-lbl" x="467" y="372">AED-02（待命）</text>
+              <rect x="150" y="440" width="14" height="14" fill="var(--green)"/>
+              <text class="p-lbl" x="172" y="452">急救包 1F-02（正常）</text>
+            </g>
+            <g>
+              <circle class="pin" cx="350" cy="120" r="5"/>
+              <circle class="pin" cx="380" cy="150" r="5"/>
+              <circle class="pin" cx="240" cy="180" r="5"/>
+              <circle class="pin--green pin" cx="150" cy="410" r="5"/>
+              <circle class="pin--green pin" cx="95" cy="400" r="5"/>
+              <text class="p-lbl" x="352" y="112">人員站位（白）</text>
+              <text class="p-lbl" x="60" y="470" fill="var(--green)">已到位人員（綠）</text>
+            </g>
+            <text class="p-lbl" x="60" y="545">45° 線＝疏散路線 · 色塊＝資源代碼（使用中解碼高亮）· 合成平面，非實際建築圖</text>
+          </svg>
+        </div>
+      </div>
+      <div class="v3-side">
+        <div class="res">
+          <h2>資源代碼 RESOURCES</h2>
+          <div class="v3-rrow"><span class="hue hue--fire"></span><span class="code">FE-2F-01</span>2F 東走廊消防箱<span class="st st--use">使用中</span></div>
+          <div class="v3-rrow"><span class="hue hue--aed"></span><span class="code">AED-02</span>1F 服務台 AED<span class="st">待命</span></div>
+          <div class="v3-rrow"><span class="hue hue--med"></span><span class="code">1F-02</span>1F 大廳急救包<span class="st">正常</span></div>
+          <div class="v3-rrow"><span class="hue" style="background:#4a4741"></span><span class="code">M-3</span>擴音器（器材組持有）<span class="st">正常</span></div>
+        </div>
+        <ul class="v3-pin">
+          <h2>人員站位 STAFF</h2>
+          <li><span class="no">S1</span>通報員 · 指揮中心 1F 北側</li>
+          <li><span class="no">S2</span>疏散組 2 人 · 樓梯 T2 上下</li>
+          <li><span class="no">S3</span>器材組 · FE-2F-01 旁</li>
+          <li><span class="no">S4</span>急救組 · 集合點 B 待命</li>
+        </ul>
+      </div>
+    </div>
+    <footer class="v3-foot">平面為示意（非實際建築圖），資源代碼、人員與狀態皆為合成資料。疏散路線採 45° 線繪製，僅供演練走位參考；不介入真實緊急應變。本原型僅供選題評審。</footer>
   </div>
 </section>
 </main>
 
 <div class="variant-switcher" role="toolbar" aria-label="變體切換">
-  <button class="vs-btn" data-variant-prev aria-label="上一個變體">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-  </button>
+  <button class="vs-btn" data-variant-prev aria-label="上一個變體"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
   <span class="vs-label" data-variant-label aria-live="polite">1 (演練指揮中心)</span>
-  <button class="vs-btn" data-variant-next aria-label="下一個變體">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-  </button>
+  <button class="vs-btn" data-variant-next aria-label="下一個變體"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
 
 <script>

@@ -1,251 +1,126 @@
 <!doctype html>
-<!-- CareGuide 設計問題：「高齡長輩申辦公共服務」的介面應該長什麼樣子？三個結構迥異的變體以 ?variant=1..3 切換：1 引導式申辦精靈、2 文件清單對照、3 大字服務首頁。 -->
-<!--
-  設計系統（一次性原型）
-  共用 token：4px 間距階層 --s1..--s7；字級 --t-*；圓角 --r-*；陰影 --sh-1。
-  長者可讀性底線：使用者畫面 base ≥18px、極高對比、按鈕高 ≥56px、一屏一題、每題至多 2 個選項。
-  三個變體各是一個獨立「視覺世界」，世界 token 以 .v1/.v2/.v3 範圍宣告：
-  v1 引導式申辦精靈＝暖陽橘（杏 cream 底、焦橘主色、圓角 kiosk 風、單一問題舞台＋粗進度條）
-  v2 文件清單對照＝文件櫃（淺鼠尾草綠底、深綠主色、公文表單結構、三欄文件表）
-  v3 大字服務首頁＝清晨藍（淡晨光藍底、深青主色、直向大卡服務大廳、深色客服橫幅）
-  高程各自只宣告一層：v1 用柔和陰影、v2 用 1px 框線、v3 用 1px 框線＋淺色塊。
-  動作：v1 進度條填充、v3 卡片浮現，皆受 prefers-reduced-motion 約束。
--->
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="CareGuide 高齡友善公共服務申辦引導平台 · 一次性 UI 原型（合成資料）">
 <title>CareGuide 一次性原型（第一版）</title>
 <style>
-/* ============ 0. 重置與共用 token ============ */
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
 :root{
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
-  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
-  --r-s:8px;--r-m:12px;--r-l:16px;
-  --t-cap:11px;--t-sm:12px;--t-md:14px;--t-lg:16px;--t-xl:22px;
-  --sh-1:0 1px 2px rgba(15,23,42,.06),0 2px 8px rgba(15,23,42,.09);
-  --dur:160ms;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --serif:ui-serif,"New York","Songti TC","Noto Serif TC",Georgia,serif;
+  --s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --ink:#23211c;
+  --paper:#f5f1e6;
+  --paper2:#fbf8f0;
+  --cblue:#3a6ea5;
+  --cpink:#a84a60;
+  --mail-red:#d94a3d;
+  --mail-blue:#2f5fd0;
 }
-body{font-family:var(--sans);font-size:var(--t-md);background:#15181d}
+body{font-family:var(--sans);font-size:18px;background:var(--paper);color:var(--ink)}
 h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
 button{font:inherit;cursor:pointer}
-img,svg{vertical-align:middle}
-
-/* ============ 1. 共用元件（合成資料標籤） ============ */
-.syn-tag{font-size:var(--t-cap);font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
-
-/* ============ 2. 原型共用外框（非頁面設計的一部分） ============ */
-.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:#15181d;color:#f4f6f8;font-size:var(--t-sm);font-weight:600;padding:10px var(--s4)}
+svg{vertical-align:middle}
+.airmail{height:14px;background:repeating-linear-gradient(45deg,var(--mail-red) 0 14px,var(--paper2) 14px 28px,var(--mail-blue) 28px 42px,var(--paper2) 42px 56px)}
+.proto-banner{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--paper2);font-size:14px;font-weight:600;padding:10px 16px}
 .proto-banner::before{content:"";flex:none;width:10px;height:10px;border-radius:3px;background:#ffd21f}
-.variant{min-height:100svh;padding-bottom:88px}
+.variant{min-height:100svh;padding-bottom:96px}
 .variant[hidden]{display:none}
-.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:var(--s2);background:#0c0e12;
-  color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
-.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;transition:background var(--dur)}
-.vs-btn:hover{background:rgba(255,255,255,.26)}
-.vs-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
-.vs-label{font-size:var(--t-sm);font-weight:700;min-width:176px;text-align:center;font-variant-numeric:tabular-nums}
+.variant-switcher{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.vs-btn{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;transition:background 140ms}
+.vs-btn:hover{background:rgba(255,255,255,.28)}
+.vs-label{font-family:var(--mono);font-size:12px;font-weight:700;min-width:160px;text-align:center;font-variant-numeric:tabular-nums}
+.syn-tag{font-family:var(--mono);font-size:12px;letter-spacing:.1em;border:1.5px solid var(--ink);border-radius:2px;padding:3px 10px;white-space:nowrap}
+.big-focus :focus-visible{outline:3px solid var(--mail-blue);outline-offset:3px}
+.big-focus ::selection{background:var(--cpink);color:#fff}
 
-/* ============ 3. 變體 1：引導式申辦精靈（暖陽橘 · kiosk 舞台） ============ */
-.v1{
-  --v-bg:#fff6ec;--v-panel:#ffffff;--v-ink:#33241a;--v-dim:#7a5a42;
-  --v-line:#ecd9c4;--v-soft:#f9ead8;--v-soft-2:#fdf3e7;
-  --v-primary:#b4451f;--v-primary-2:#9c3a18;
-  --t-base:19px;--t-sub:18px;--t-h1:30px;--t-h2:24px;--t-h3:22px;
-  --r-xl:20px;
-  background:var(--v-bg);color:var(--v-ink);
-  font-size:var(--t-base);line-height:1.75;
-}
-.v1 :focus-visible{outline:3px solid var(--v-primary-2);outline-offset:3px}
-.v1 ::selection{background:rgba(180,69,31,.22)}
-.v1-shell{max-width:600px;margin:0 auto;padding:var(--s4) var(--s4) 0}
-.v1-top{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0 var(--s5)}
-.v1-brand{display:flex;align-items:center;gap:var(--s2);font-weight:800;font-size:21px}
-.v1 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
-.v1-card{background:var(--v-panel);border-radius:var(--r-xl);box-shadow:0 6px 24px rgba(151,84,39,.12);padding:var(--s6) var(--s5)}
-.v1-servrow{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s5)}
-.v1-serv{display:inline-flex;align-items:center;font-size:var(--t-sub);font-weight:800;color:var(--v-primary);background:var(--v-soft);border-radius:999px;padding:6px 14px}
-.v1-serv--tag{color:var(--v-dim);background:transparent;border:1px dashed var(--v-line);font-weight:700}
-.v1-answered{display:flex;align-items:center;gap:10px;color:var(--v-dim);font-size:var(--t-sub);margin-bottom:var(--s4)}
-.v1-prog__row{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);font-size:var(--t-sub);font-weight:600;color:var(--v-dim);margin-bottom:var(--s2)}
-.v1-prog__row b{color:var(--v-ink);font-size:var(--t-h3);font-weight:800}
-.v1-prog__pct{font-variant-numeric:tabular-nums}
-.v1-bar{height:16px;border-radius:999px;background:var(--v-soft);overflow:hidden}
-.v1-fill{display:block;height:100%;width:40%;border-radius:999px;background:var(--v-primary)}
-@media (prefers-reduced-motion:no-preference){
-  .v1-fill{animation:v1-fill .8s cubic-bezier(.16,1,.3,1) backwards}
-}
-@keyframes v1-fill{from{width:0}}
-.v1-q{display:flex;align-items:flex-start;gap:var(--s3);flex-wrap:wrap;margin:var(--s6) 0 var(--s2)}
-.v1-q h2{flex:1;min-width:200px;font-size:var(--t-h1);font-weight:800;line-height:1.4}
-.v1-read{flex:none;display:inline-flex;align-items:center;gap:10px;border:0;border-radius:999px;background:var(--v-soft);
-  color:var(--v-primary);font-size:var(--t-sub);font-weight:800;padding:0 var(--s4);min-height:56px;transition:background var(--dur)}
-.v1-read:hover{background:#f3ddc2}
-.v1-read:active{transform:translateY(1px)}
-.v1-hint{color:var(--v-dim);font-size:var(--t-sub);margin-bottom:var(--s5)}
-.v1-opts{display:grid;gap:var(--s3);margin-bottom:var(--s6)}
-.v1-opt{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);width:100%;min-height:84px;padding:var(--s4) var(--s5);border-radius:var(--r-xl);
-  border:2px solid var(--v-line);background:var(--v-panel);font-size:var(--t-h2);font-weight:700;color:var(--v-ink);text-align:left;transition:border-color var(--dur),background var(--dur)}
-.v1-opt:hover{border-color:var(--v-primary);background:var(--v-soft-2)}
-.v1-opt--on{border-color:var(--v-primary);background:#fbe9dd}
-.v1-opt__mark{flex:none;width:44px;height:44px;border-radius:50%;border:2px solid var(--v-line);display:grid;place-items:center;color:transparent;transition:background var(--dur),border-color var(--dur),color var(--dur)}
-.v1-opt--on .v1-opt__mark{background:var(--v-primary);border-color:var(--v-primary);color:#fff}
-.v1-nav{display:flex;gap:var(--s3)}
-.v1-nav__prev,.v1-nav__next{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:64px;border-radius:var(--r-xl);
-  font-size:var(--t-h3);font-weight:800;transition:background var(--dur),border-color var(--dur),color var(--dur)}
-.v1-nav__prev:active,.v1-nav__next:active{transform:translateY(2px)}
-.v1-nav__prev{border:2px solid var(--v-line);background:var(--v-panel);color:var(--v-ink)}
-.v1-nav__prev:hover{border-color:var(--v-primary);color:var(--v-primary)}
-.v1-nav__next{border:0;background:var(--v-primary);color:#fff}
-.v1-nav__next:hover{background:var(--v-primary-2)}
-.v1-stuck{display:block;margin:var(--s5) auto 0;padding:10px 4px;text-align:center;font-size:var(--t-sub);color:var(--v-dim);text-underline-offset:4px;text-decoration-thickness:2px}
-.v1-stuck:hover{color:var(--v-primary)}
-.v1-foot{color:var(--v-dim);font-size:14px;margin-top:var(--s5);line-height:1.7;text-align:center}
-@media (max-width:400px){
-  .v1-card{padding:var(--s5) var(--s4)}
-}
+/* ===== v1 票根 coupon 精靈 ===== */
+.v1{color:var(--ink)}
+.v1-shell{max-width:640px;margin:0 auto;padding:var(--s5) var(--s4) 0}
+.v1-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:var(--s5)}
+.v1-top h1{font-family:var(--serif);font-size:24px;font-weight:900}
+.v1-top .svc{font-family:var(--mono);font-size:13px;color:var(--cblue);border:1.5px solid var(--cblue);border-radius:2px;padding:2px 10px}
+.v1-top .syn-tag{margin-left:auto}
+.coupon{position:relative;background:var(--paper2);border:2px solid var(--ink);padding:var(--s6) var(--s5) var(--s5)}
+.coupon::before,.coupon::after{content:"";position:absolute;width:26px;height:26px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.coupon::before{top:-15px;left:calc(72% - 13px)}
+.coupon::after{top:-15px;right:-15px}
+.coupon .perf{border-left:2px dashed rgba(35,33,28,.45);position:absolute;top:22px;bottom:22px;left:72%}
+.coupon .stamp{position:absolute;top:var(--s4);right:var(--s5);font-family:var(--mono);font-size:14px;font-weight:700;color:var(--cblue);border:2px solid var(--cblue);padding:4px 10px;transform:rotate(3deg);border-radius:2px;letter-spacing:.08em;background:rgba(58,110,165,.06)}
+.coupon .step{display:flex;align-items:center;gap:14px}
+.coupon .step{font-family:var(--mono);font-size:14px;letter-spacing:.12em;color:var(--cpink);font-weight:700;margin-bottom:var(--s4)}
+.coupon h2{font-family:var(--serif);font-size:30px;font-weight:900;line-height:1.5;margin-bottom:var(--s5)}
+.opt{display:block;width:100%;text-align:left;font-size:24px;font-weight:800;padding:24px 22px;min-height:88px;margin-bottom:var(--s4);border:3px solid var(--ink);background:#fff;border-radius:8px;line-height:1.4;transition:background 140ms,transform 140ms}
+.opt:active{transform:translateY(2px)}
+.opt:hover{background:rgba(58,110,165,.08)}
+.opt small{display:block;font-family:var(--mono);font-size:14px;font-weight:400;color:#6d675c;margin-top:6px}
+.coupon-actions{display:flex;gap:var(--s4);flex-wrap:wrap;border-top:2px solid var(--ink);padding-top:var(--s4);margin-top:var(--s5)}
+.read-btn{flex:1;min-width:220px;min-height:64px;font-size:20px;font-weight:800;border:3px solid var(--ink);background:var(--ink);color:var(--paper2);border-radius:8px}
+.help-btn{flex:1;min-width:220px;min-height:64px;font-size:20px;font-weight:800;border:3px dashed var(--cpink);background:transparent;color:var(--cpink);border-radius:8px}
+.v1-foot{margin-top:var(--s6);font-family:var(--mono);font-size:12px;color:#6d675c;line-height:1.8;padding-bottom:var(--s4)}
 
-/* ============ 4. 變體 2：文件清單對照（文件櫃 · 表單） ============ */
-.v2{
-  --v-bg:#eef3ef;--v-panel:#ffffff;--v-ink:#1f2d26;--v-dim:#5d7265;
-  --v-line:#d6e2da;--v-soft:#f2f7f3;
-  --v-primary:#1e6b47;--v-primary-2:#175a3b;
-  --v-ok:#1e6b47;--v-ok-soft:#e2f0e6;
-  --v-bad:#b3372b;--v-bad-soft:#faeae7;
-  --v-warn:#8a5a00;
-  --t-base:18px;--t-sub:18px;--t-h1:28px;--t-h2:22px;--t-h3:20px;
-  background:var(--v-bg);color:var(--v-ink);
-  font-size:var(--t-base);line-height:1.7;
-}
-.v2 :focus-visible{outline:3px solid var(--v-primary);outline-offset:3px}
-.v2 ::selection{background:rgba(30,107,71,.2)}
-.v2-shell{max-width:720px;margin:0 auto;padding:var(--s4) var(--s4) 0}
-.v2-top{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0 var(--s4)}
-.v2-brand{display:flex;align-items:center;gap:var(--s2);font-weight:800;font-size:20px}
-.v2 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
-.v2-rule{height:6px;border-radius:3px;background:var(--v-primary);margin-bottom:var(--s5)}
-.v2-h1{font-size:var(--t-h1);font-weight:800;line-height:1.35;letter-spacing:-0.01em}
-.v2-meta{color:var(--v-dim);font-size:var(--t-sub);margin:var(--s1) 0 var(--s5);font-variant-numeric:tabular-nums}
-.v2-docs{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);overflow:hidden;margin-bottom:var(--s4)}
-.v2-tbl-head{display:none;grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr);gap:var(--s3);align-items:center;padding:var(--s3) var(--s4);
-  background:var(--v-soft);color:var(--v-dim);font-weight:700;font-size:var(--t-sub);border-bottom:1px solid var(--v-line)}
-.v2-docs ul{list-style:none;margin:0;padding:0}
-.v2-doc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s2) var(--s3);align-items:start;padding:var(--s4);border-bottom:1px solid var(--v-line)}
-.v2-doc:last-child{border-bottom:0}
-.v2-doc--miss{background:var(--v-bad-soft)}
-.v2-doc--miss .v2-doc__name{color:var(--v-bad)}
-.v2-doc__name{font-weight:700;font-size:var(--t-h3);line-height:1.5;padding-top:2px}
-.v2-st{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-sub);padding:7px 14px;border-radius:999px;white-space:nowrap}
-.st--ok{background:var(--v-ok-soft);color:var(--v-ok)}
-.st--miss{background:var(--v-panel);color:var(--v-bad);box-shadow:inset 0 0 0 1px var(--v-bad)}
-.v2-doc__fix{font-size:var(--t-sub);line-height:1.55;color:var(--v-bad);font-weight:600}
-.v2-fix__l{display:block;font-size:14px;font-weight:700;color:var(--v-dim);margin-bottom:2px}
-.v2-dash{color:var(--v-dim)}
-@media (min-width:640px){
-  .v2-tbl-head{display:grid}
-  .v2-doc{grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr);align-items:center}
-}
-@media (max-width:639px){
-  .v2-doc__fix{grid-column:1/-1}
-  .v2-doc__fix--none{display:none}
-}
-.v2-card{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-l);padding:var(--s5);margin-bottom:var(--s4)}
-.v2-card__t{font-size:var(--t-h2);font-weight:800;margin-bottom:var(--s4)}
-.v2-result{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;background:var(--v-ok-soft);border-radius:var(--r-m);padding:var(--s4)}
-.v2-result__big{font-size:var(--t-h1);font-weight:800;color:var(--v-ok);line-height:1.2}
-.v2-result__note{font-size:var(--t-sub);font-weight:700}
-.v2-checks{list-style:none;margin:var(--s4) 0 0;padding:0;display:grid;gap:var(--s3)}
-.v2-checks li{display:flex;gap:10px;align-items:flex-start;font-size:var(--t-sub);line-height:1.6}
-.v2-checks li svg{flex:none;margin-top:4px}
-.v2-checks b{font-weight:800}
-.v2-warn-t{color:var(--v-warn)}
-.v2-help__row{display:flex;align-items:center;gap:var(--s4);margin-bottom:var(--s3)}
-.v2-help__icon{flex:none;width:64px;height:64px;border-radius:50%;background:var(--v-ok-soft);color:var(--v-primary);display:grid;place-items:center}
-.v2-help__num{font-size:54px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em}
-.v2-help__cap{color:var(--v-dim);font-size:var(--t-sub);font-weight:600}
-.v2-help__time{color:var(--v-dim);font-size:var(--t-sub);margin-bottom:var(--s4)}
-.v2-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:60px;border:0;border-radius:var(--r-m);
-  background:var(--v-primary);color:#fff;font-size:var(--t-h3);font-weight:800;transition:background var(--dur)}
-.v2-btn:hover{background:var(--v-primary-2)}
-.v2-btn:active{transform:translateY(2px)}
-.v2-foot{color:var(--v-dim);font-size:14px;margin-top:var(--s5);line-height:1.7;text-align:center}
+/* ===== v2 行李牌文件卡 ===== */
+.v2{color:var(--ink)}
+.v2-shell{max-width:760px;margin:0 auto;padding:var(--s5) var(--s4) 0}
+.v2-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:var(--s5)}
+.v2-top h1{font-family:var(--serif);font-size:28px;font-weight:900}
+.v2-top .cnt{font-family:var(--mono);font-size:14px;color:var(--cpink);font-weight:700}
+.v2-top .syn-tag{margin-left:auto;align-self:center}
+.tag{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s4);align-items:center;background:var(--paper2);border:2.5px solid var(--ink);border-radius:10px;padding:var(--s4) var(--s4) var(--s4) 64px;margin-bottom:var(--s4);transform:rotate(-.4deg)}
+.tag:nth-child(even){transform:rotate(.4deg)}
+.tag::before{content:"";position:absolute;left:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink)}
+.tag::after{content:"";position:absolute;left:40px;top:50%;height:2.5px;width:14px;background:var(--ink);transform:translateY(-50%) rotate(18deg)}
+.tag .nm{font-family:var(--serif);font-size:24px;font-weight:900;line-height:1.4}
+.tag .need{font-family:var(--mono);font-size:14px;color:#6d675c;margin-top:6px;line-height:1.7}
+.tag .chop{font-family:var(--serif);font-weight:900;font-size:18px;border:3px solid currentColor;border-radius:4px;padding:6px 12px;transform:rotate(-8deg);white-space:nowrap;letter-spacing:.1em}
+.chop--ok{color:var(--cblue)}
+.chop--miss{color:var(--mail-red)}
+.v2-elig{border:2.5px solid var(--cblue);background:rgba(58,110,165,.05);border-radius:10px;padding:var(--s4);margin-top:var(--s5)}
+.v2-elig h2{font-family:var(--mono);font-size:14px;letter-spacing:.14em;color:var(--cblue);margin-bottom:10px}
+.v2-elig p{font-size:19px;line-height:1.9}
+.v2-elig p b{font-family:var(--mono)}
+.v2-elig button{margin-top:var(--s4);min-height:64px;width:100%;font-size:20px;font-weight:800;border:3px solid var(--cblue);background:var(--cblue);color:#fff;border-radius:8px}
+.v2-1955{display:flex;align-items:center;gap:var(--s4);border:2.5px solid var(--ink);background:var(--paper2);border-radius:10px;padding:var(--s4);margin-top:var(--s4)}
+.v2-1955 .num{font-family:var(--mono);font-weight:800;font-size:44px;letter-spacing:.04em}
+.v2-1955 p{font-size:17px;line-height:1.7}
+.v2-foot{margin-top:var(--s5);font-family:var(--mono);font-size:12px;color:#6d675c;line-height:1.8;padding-bottom:var(--s4)}
 
-/* ============ 5. 變體 3：大字服務首頁（清晨藍 · 服務大廳） ============ */
-.v3{
-  --v-bg:#eaf3f8;--v-panel:#ffffff;--v-ink:#142e3c;--v-dim:#4f6d7d;
-  --v-line:#cfe0e9;--v-soft:#f2f8fb;
-  --v-primary:#0e6b8f;--v-primary-2:#0b5a79;
-  --t-base:19px;--t-sub:18px;--t-h1:34px;--t-h2:24px;--t-h3:20px;
-  --r-xl:20px;
-  background:var(--v-bg);color:var(--v-ink);
-  font-size:var(--t-base);line-height:1.7;
-}
-.v3 :focus-visible{outline:3px solid var(--v-primary);outline-offset:3px}
-.v3 ::selection{background:rgba(14,107,143,.2)}
-.v3-shell{max-width:640px;margin:0 auto;padding:var(--s4) var(--s4) 0}
-.v3-top{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0 var(--s5)}
-.v3-brand{display:flex;align-items:center;gap:var(--s2);font-weight:800;font-size:21px}
-.v3 .syn-tag{margin-left:auto;color:var(--v-dim);border:1px solid var(--v-line);background:var(--v-panel)}
-.v3-greet h1{font-size:var(--t-h1);font-weight:800;line-height:1.35;letter-spacing:-0.01em}
-.v3-greet p{color:var(--v-dim);font-size:var(--t-h2);font-weight:600;margin-top:var(--s2)}
-.v3-day{display:inline-flex;align-items:center;gap:8px;margin-top:var(--s3);font-size:var(--t-sub);font-weight:700;
-  color:var(--v-primary);background:var(--v-soft);border:1px solid var(--v-line);padding:6px 14px;border-radius:999px}
-.v3-day{font-variant-numeric:tabular-nums}
-.v3-voice{display:flex;align-items:center;gap:var(--s3);background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-xl);padding:var(--s4);margin:var(--s5) 0}
-.v3-voice__icon{flex:none;width:52px;height:52px;border-radius:50%;background:var(--v-soft);color:var(--v-primary);display:grid;place-items:center}
-.v3-voice__txt{flex:1;min-width:0}
-.v3-voice__txt b{display:block;font-size:var(--t-h3);font-weight:800}
-.v3-voice__sub{display:block;color:var(--v-dim);font-size:var(--t-sub)}
-.v3-switch{flex:none;position:relative;width:84px;height:48px;border:0;border-radius:999px;background:var(--v-primary);transition:background var(--dur)}
-.v3-switch__knob{position:absolute;top:4px;left:4px;width:40px;height:40px;border-radius:50%;background:#fff;transition:transform var(--dur)}
-.v3-switch[aria-checked="true"] .v3-switch__knob{transform:translateX(36px)}
-.v3-switch:hover{background:var(--v-primary-2)}
-.v3-switch:active{transform:translateY(1px)}
-.v3-h{font-size:var(--t-h2);font-weight:800;margin:var(--s5) 0 var(--s3)}
-.v3-list{display:grid;gap:var(--s4)}
-.v3-serv{background:var(--v-panel);border:1px solid var(--v-line);border-radius:var(--r-xl);padding:var(--s5);display:grid;gap:var(--s3)}
-.v3-serv__head{display:flex;align-items:center;gap:var(--s3)}
-.v3-serv__icon{flex:none;width:60px;height:60px;border-radius:var(--r-m);background:var(--v-soft);color:var(--v-primary);display:grid;place-items:center}
-.v3-serv h3{font-size:var(--t-h2);font-weight:800;line-height:1.35}
-.v3-serv__desc{color:var(--v-dim);font-size:var(--t-base);line-height:1.65}
-.v3-time{display:inline-flex;align-items:center;gap:8px;justify-self:start;font-size:var(--t-sub);font-weight:700;color:var(--v-primary);background:var(--v-soft);border-radius:999px;padding:6px 14px}
-.v3-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:72px;border:0;border-radius:var(--r-m);font-size:24px;font-weight:800;transition:background var(--dur)}
-.v3-btn:active{transform:translateY(2px)}
-.v3-btn--go{background:var(--v-primary);color:#fff}
-.v3-btn--go:hover{background:var(--v-primary-2)}
-.v3-helpbar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;background:var(--v-ink);color:#fff;border-radius:var(--r-xl);padding:var(--s5);margin-top:var(--s5)}
-.v3-helpbar__icon{flex:none;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center}
-.v3-helpbar__txt{flex:1 1 200px;min-width:0}
-.v3-helpbar__txt b{display:block;font-size:var(--t-h3);font-weight:800}
-.v3-helpbar__sub{display:block;color:rgba(255,255,255,.78);font-size:var(--t-sub)}
-.v3-helpbar__num{font-size:44px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
-.v3-btn--call{flex:none;width:auto;border:0;background:#fff;color:var(--v-ink);min-height:60px;padding:0 var(--s5);border-radius:999px;font-size:var(--t-h3)}
-.v3-btn--call:hover{background:#e8f2f7}
-.v3-foot{color:var(--v-dim);font-size:14px;margin-top:var(--s5);line-height:1.7;text-align:center}
-@media (prefers-reduced-motion:no-preference){
-  .v3-serv{animation:v3-rise .55s cubic-bezier(.16,1,.3,1) backwards}
-  .v3-serv:nth-child(2){animation-delay:.07s}
-  .v3-serv:nth-child(3){animation-delay:.14s}
-}
-@keyframes v3-rise{from{opacity:0;transform:translateY(16px)}}
+/* ===== v3 航空郵件大字首頁 ===== */
+.v3{color:var(--ink);font-size:20px}
+.v3-shell{max-width:720px;margin:0 auto;padding:var(--s5) var(--s4) 0}
+.v3-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:var(--s5)}
+.v3-top h1{font-family:var(--serif);font-size:30px;font-weight:900}
+.v3-top .syn-tag{margin-left:auto}
+.env{border:3px solid var(--ink);border-radius:12px;background:var(--paper2);margin-bottom:var(--s5);overflow:hidden}
+.env .airmail{border-bottom:3px solid var(--ink)}
+.envbody{padding:var(--s5) var(--s4) var(--s4)}
+.envbody .svcno{font-family:var(--mono);font-size:14px;letter-spacing:.14em;color:var(--cpink);font-weight:700}
+.envbody h2{font-family:var(--serif);font-size:32px;font-weight:900;line-height:1.4;margin:8px 0 6px}
+.envbody .demo{font-family:var(--mono);font-size:13px;border:1.5px solid var(--ink);padding:1px 8px;border-radius:2px;vertical-align:middle}
+.envbody p{font-size:19px;line-height:1.8;color:#4c4840}
+.envbody .mins{display:inline-block;font-family:var(--mono);font-size:16px;font-weight:700;border:2px solid var(--cblue);color:var(--cblue);border-radius:999px;padding:4px 14px;margin:12px 0 0}
+.envbody button{display:block;width:100%;margin-top:var(--s4);min-height:80px;font-size:26px;font-weight:900;border:3px solid var(--ink);background:var(--mail-red);color:#fff;border-radius:10px;letter-spacing:.06em}
+.envbody button:active{transform:translateY(2px)}
+.v3-1955{display:flex;align-items:center;gap:var(--s5);border:3px solid var(--ink);background:var(--ink);color:var(--paper2);border-radius:12px;padding:var(--s5) var(--s4)}
+.v3-1955 .num{font-family:var(--mono);font-weight:800;font-size:72px;line-height:1;letter-spacing:.04em}
+.v3-1955 .lbl{font-size:19px;line-height:1.7}
+.v3-1955 .lbl b{font-size:22px}
+.v3-1955 button{margin-left:auto;min-height:72px;padding:0 28px;font-size:22px;font-weight:900;border:3px solid var(--paper2);background:transparent;color:var(--paper2);border-radius:10px;flex:none}
+.v3-1955 button:active{transform:translateY(2px)}
+.v3-foot{margin-top:var(--s5);font-family:var(--mono);font-size:13px;color:#6d675c;line-height:1.8;padding-bottom:var(--s4)}
 
-@media (max-width:400px){
-  .v1-q h2{font-size:27px}
-  .v1-prog__row b{font-size:20px}
-}
-@media (max-width:400px){
-  .v2-card{padding:var(--s4)}
-  .v2-help__num{font-size:46px}
-  .v2-doc{padding:var(--s3) var(--s4)}
-}
-@media (max-width:400px){
-  .v3-serv{padding:var(--s4)}
-  .v3-helpbar{padding:var(--s4)}
-  .v3-helpbar__num{font-size:38px}
-  .v3-greet h1{font-size:30px}
+/* ===== 響應式 ===== */
+@media (max-width:520px){
+  .coupon::before{display:none}
+  .coupon .perf{display:none}
+  .coupon .stamp{display:none}
+  .coupon .step .stamp{display:inline-block;position:static;transform:none;margin:0 0 0 auto}
+  .tag{grid-template-columns:1fr}
+  .v3-1955{flex-wrap:wrap}
+  .v3-1955 button{margin-left:0;width:100%}
 }
 </style>
 </head>
@@ -254,354 +129,137 @@ img,svg{vertical-align:middle}
 <div class="proto-banner" data-prototype-banner>一次性原型 PROTOTYPE — 第一版（供評審，非最終設計）</div>
 
 <main>
-<!-- ================= 變體 1：引導式申辦精靈（長者可讀 · kiosk 舞台） ================= -->
-<section class="variant v1" data-variant="1">
+<section class="variant v1 big-focus" data-variant="1">
   <div class="v1-shell">
     <header class="v1-top">
-      <div class="v1-brand">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="2" y="2" width="20" height="20" rx="7" fill="currentColor" opacity=".14"/>
-            <path d="M12 16.8c-3.4-2.6-5.2-4.4-5.2-6.5 0-1.7 1.3-3 2.9-3 1.1 0 1.9.5 2.3 1.3.4-.8 1.2-1.3 2.3-1.3 1.6 0 2.9 1.3 2.9 3 0 2.1-1.8 3.9-5.2 6.5z" fill="currentColor"/>
-          </svg>
-        CareGuide
-      </div>
+      <h1>申辦引導</h1>
+      <span class="svc">長期照顧服務券（示意）</span>
       <span class="syn-tag">合成資料</span>
     </header>
-
-    <div class="v1-card">
-      <div class="v1-servrow">
-        <span class="v1-serv">長期照顧服務券</span>
-        <span class="v1-serv v1-serv--tag">示意服務</span>
-      </div>
-
-      <p class="v1-answered">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e7a45" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M8 12.2l2.7 2.7L16.5 9"/>
-        </svg>
-        第 1 題 · 照顧需求類型：已回答
-      </p>
-
-      <div class="v1-prog">
-        <div class="v1-prog__row">
-          <span>第 <b>2</b> 題 / 共 5 題</span>
-          <span class="v1-prog__pct">40%</span>
-        </div>
-        <div class="v1-bar" role="progressbar" aria-valuenow="2" aria-valuemin="1" aria-valuemax="5" aria-label="申辦進度：第 2 題，共 5 題">
-          <span class="v1-fill"></span>
-        </div>
-      </div>
-
-      <div class="v1-q">
-        <h2>您目前的年齡是？</h2>
-        <button class="v1-read" type="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M11 5.2L6.5 8.7H3.5v6.6h3L11 18.8z" fill="currentColor"/>
-              <path d="M14.8 9.4a4.3 4.3 0 010 5.2M17.4 6.8a8 8 0 010 10.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          朗讀此頁
-        </button>
-      </div>
-      <p class="v1-hint">不用急，慢慢想。答完之後還可以改。</p>
-
-      <div class="v1-opts" role="group" aria-label="請選擇您的年齡">
-        <button class="v1-opt v1-opt--on" type="button" aria-pressed="true">
-          滿 65 歲
-          <span class="v1-opt__mark" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4.5 12.5l5 5 10-11"/>
-              </svg>
-          </span>
-        </button>
-        <button class="v1-opt" type="button" aria-pressed="false">
-          未滿 65 歲
-          <span class="v1-opt__mark" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4.5 12.5l5 5 10-11"/>
-              </svg>
-          </span>
-        </button>
-      </div>
-
-      <div class="v1-nav">
-        <button class="v1-nav__prev" type="button">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M14.5 5.5L8 12l6.5 6.5"/>
-            </svg>
-          上一頁
-        </button>
-        <button class="v1-nav__next" type="button">
-          下一頁
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M9.5 5.5L16 12l-6.5 6.5"/>
-            </svg>
-        </button>
+    <div class="airmail" aria-hidden="true"></div>
+    <div class="coupon" style="margin-top:26px">
+      <div class="perf" aria-hidden="true"></div>
+      <div class="step"><span>STEP 2 — 照顧需求</span><span class="stamp">第 2 券／共 5 券</span></div>
+      <h2>您（或家人）洗澡、吃飯、如廁、上下床，有沒有 3 項以上需要別人幫忙？</h2>
+      <button class="opt">有，常常需要幫忙<small>通常代表符合「中度以上照顧需求」的評估起點</small></button>
+      <button class="opt">還沒有，但想先了解<small>也可以先評估，評估本身免費</small></button>
+      <div class="coupon-actions">
+        <button class="read-btn">🔊 朗讀此頁</button>
+        <button class="help-btn">卡住了，叫人工協助</button>
       </div>
     </div>
-
-    <a class="v1-stuck" href="#human-help">卡住了？点這裡叫人工協助</a>
-
-    <p class="v1-foot">所有內容皆為合成示範資料。服務資訊為示意，正式內容以政府官方網站為準。</p>
+    <footer class="v1-foot">長照服務券內容為示意，正式資格與流程以政府官方網站及評估結果為準。「人工協助」轉接 1955 社會與勞動服務專線。本原型僅供選題評審。</footer>
   </div>
 </section>
-<!-- ================= 變體 2：文件清單對照（文件櫃 · 表單） ================= -->
-<section class="variant v2" data-variant="2" hidden>
+
+<section class="variant v2 big-focus" data-variant="2" hidden>
   <div class="v2-shell">
     <header class="v2-top">
-      <div class="v2-brand">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="2" y="2" width="20" height="20" rx="7" fill="currentColor" opacity=".14"/>
-            <path d="M12 16.8c-3.4-2.6-5.2-4.4-5.2-6.5 0-1.7 1.3-3 2.9-3 1.1 0 1.9.5 2.3 1.3.4-.8 1.2-1.3 2.3-1.3 1.6 0 2.9 1.3 2.9 3 0 2.1-1.8 3.9-5.2 6.5z" fill="currentColor"/>
-          </svg>
-        CareGuide
-      </div>
+      <h1>要備齊的文件</h1>
+      <span class="cnt">3／5 已備妥</span>
       <span class="syn-tag">合成資料</span>
     </header>
-
-    <div class="v2-rule" aria-hidden="true"></div>
-    <h1 class="v2-h1">長期照顧服務券 · 文件清單</h1>
-    <p class="v2-meta">案號 CG-2026-0042（示意） · 共 5 項文件</p>
-
-    <div class="v2-docs">
-      <div class="v2-tbl-head" aria-hidden="true"><span>文件</span><span>你有嗎</span><span>補辦方式</span></div>
-      <ul>
-        <li class="v2-doc">
-          <span class="v2-doc__name">身分證影本</span>
-          <span class="v2-st st--ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4.5 12.5l5 5 10-11"/>
-            </svg>
-            已備妥</span>
-          <span class="v2-doc__fix v2-doc__fix--none"><span class="v2-dash">—</span></span>
-        </li>
-        <li class="v2-doc">
-          <span class="v2-doc__name">戶籍謄本（3 個月內）</span>
-          <span class="v2-st st--ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4.5 12.5l5 5 10-11"/>
-            </svg>
-            已備妥</span>
-          <span class="v2-doc__fix v2-doc__fix--none"><span class="v2-dash">—</span></span>
-        </li>
-        <li class="v2-doc">
-          <span class="v2-doc__name">長照服務需求評估表</span>
-          <span class="v2-st st--ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4.5 12.5l5 5 10-11"/>
-            </svg>
-            已備妥</span>
-          <span class="v2-doc__fix v2-doc__fix--none"><span class="v2-dash">—</span></span>
-        </li>
-        <li class="v2-doc v2-doc--miss">
-          <span class="v2-doc__name">身分證明文件</span>
-          <span class="v2-st st--miss"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M12 7.5v5.5M12 16.6h.01"/>
-            </svg>
-            尚缺</span>
-          <span class="v2-doc__fix"><span class="v2-fix__l">補辦方式</span>到戶政事務所申請加蓋</span>
-        </li>
-        <li class="v2-doc v2-doc--miss">
-          <span class="v2-doc__name">銀行存摺或一卡通</span>
-          <span class="v2-st st--miss"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M12 7.5v5.5M12 16.6h.01"/>
-            </svg>
-            尚缺</span>
-          <span class="v2-doc__fix"><span class="v2-fix__l">補辦方式</span>到銀行補開存摺或補發卡</span>
-        </li>
-      </ul>
+    <div class="tag">
+      <div>
+        <div class="nm">身分證正本</div>
+        <div class="need">申辦人本人；過期者需先換領</div>
+      </div>
+      <span class="chop chop--ok">已備妥 ✓</span>
+    </div>
+    <div class="tag">
+      <div>
+        <div class="nm">戶籍證明文件</div>
+        <div class="need">3 個月內開立</div>
+      </div>
+      <span class="chop chop--ok">已備妥 ✓</span>
+    </div>
+    <div class="tag">
+      <div>
+        <div class="nm">長照需求評估表</div>
+        <div class="need">補辦方式：撥 1955 或到市立長照服務窗口申請到宅評估（免費）</div>
+      </div>
+      <span class="chop chop--miss">尚缺</span>
+    </div>
+    <div class="tag">
+      <div>
+        <div class="nm">銀行存摺影本</div>
+        <div class="need">申辦人戶名，用於補助款匯入</div>
+      </div>
+      <span class="chop chop--ok">已備妥 ✓</span>
+    </div>
+    <div class="tag">
+      <div>
+        <div class="nm">收入證明</div>
+        <div class="need">補辦方式：市政府官網下載申報書自填，或戶政事務所加蓋</div>
+      </div>
+      <span class="chop chop--miss">尚缺</span>
     </div>
 
-    <article class="v2-card">
-      <h2 class="v2-card__t">資格快速檢查</h2>
-      <div class="v2-result">
-        <span class="v2-result__big">初步符合</span>
-        <span class="v2-result__note">需現場確認 2 項</span>
-      </div>
-      <ul class="v2-checks">
-        <li>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e6b47" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M8 12.2l2.7 2.7L16.5 9"/>
-            </svg>
-          <span>年齡滿 65 歲：<b>符合</b>（您 72 歲）</span>
-        </li>
-        <li>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a5a00" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M9.6 9.4a2.5 2.5 0 114.1 1.9c-.8.7-1.2 1.2-1.2 2.2M12.5 16.8h.01"/>
-            </svg>
-          <span>家戶每人平均每月收入：<b class="v2-warn-t">需現場確認</b>（請帶戶籍謄本）</span>
-        </li>
-        <li>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a5a00" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M9.6 9.4a2.5 2.5 0 114.1 1.9c-.8.7-1.2 1.2-1.2 2.2M12.5 16.8h.01"/>
-          </svg>
-          <span>長照保險投保狀態：<b class="v2-warn-t">需現場確認</b>（請帶健保卡）</span>
-        </li>
-      </ul>
-    </article>
-
-    <article class="v2-card" id="human-help">
-      <h2 class="v2-card__t">人工求助</h2>
-      <div class="v2-help__row">
-        <span class="v2-help__icon">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21.5 16.6v2.6a1.9 1.9 0 01-2.1 1.9 18.6 18.6 0 01-8.1-2.9 18.3 18.3 0 01-5.6-5.6A18.6 18.6 0 012.8 5.4 1.9 1.9 0 014.7 3.3h2.6a1.9 1.9 0 011.9 1.6c.1.9.3 1.8.6 2.7a1.9 1.9 0 01-.4 2L8.3 10.7a15 15 0 005.7 5.7l1.1-1.1a1.9 1.9 0 012-.4c.9.3 1.8.5 2.7.6a1.9 1.9 0 011.7 1.9z"/>
-            </svg>
-        </span>
-        <div>
-          <div class="v2-help__num">1955</div>
-          <div class="v2-help__cap">客服中心 · 真人客服</div>
-        </div>
-      </div>
-      <p class="v2-help__time">營業時間：週一至週五 9:00–17:00（示意）</p>
-      <button class="v2-btn" type="button">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21.5 16.6v2.6a1.9 1.9 0 01-2.1 1.9 18.6 18.6 0 01-8.1-2.9 18.3 18.3 0 01-5.6-5.6A18.6 18.6 0 012.8 5.4 1.9 1.9 0 014.7 3.3h2.6a1.9 1.9 0 011.9 1.6c.1.9.3 1.8.6 2.7a1.9 1.9 0 01-.4 2L8.3 10.7a15 15 0 005.7 5.7l1.1-1.1a1.9 1.9 0 012-.4c.9.3 1.8.5 2.7.6a1.9 1.9 0 011.7 1.9z"/>
-          </svg>
-        我要打電話
-      </button>
-    </article>
-
-    <p class="v2-foot">所有內容皆為合成示範資料。服務資訊為示意，正式內容以政府官方網站為準。</p>
+    <div class="v2-elig">
+      <h2>資格快速檢查</h2>
+      <p>初步符合條件：年滿 <b>65 歲</b>、戶籍本市，且長期照顧需求評估達 <b style="white-space:nowrap">第 6 級（中度）以上</b>。收入低於中位數者補助比例較高（示意）。</p>
+      <button>再確認一次我的資格</button>
+    </div>
+    <div class="v2-1955">
+      <div class="num">1955</div>
+      <p><b>社會與勞動服務專線</b><br>週一至週日 08:00–22:00（合成時數，示意）</p>
+    </div>
+    <footer class="v2-foot">文件名與補辦方式參照常見公共服務用語，皆為示意；正式文件清單以政府官方網站公告為準。本原型僅供選題評審。</footer>
   </div>
 </section>
 
-<!-- ================= 變體 3：大字服務首頁（清晨藍 · 服務大廳） ================= -->
-<section class="variant v3" data-variant="3" hidden>
+<section class="variant v3 big-focus" data-variant="3" hidden>
   <div class="v3-shell">
     <header class="v3-top">
-      <div class="v3-brand">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="2" y="2" width="20" height="20" rx="7" fill="currentColor" opacity=".14"/>
-            <path d="M12 16.8c-3.4-2.6-5.2-4.4-5.2-6.5 0-1.7 1.3-3 2.9-3 1.1 0 1.9.5 2.3 1.3.4-.8 1.2-1.3 2.3-1.3 1.6 0 2.9 1.3 2.9 3 0 2.1-1.8 3.9-5.2 6.5z" fill="currentColor"/>
-          </svg>
-        CareGuide
-      </div>
+      <h1>銀髮族服務</h1>
       <span class="syn-tag">合成資料</span>
     </header>
 
-    <div class="v3-greet">
-      <h1>早安，王阿姨</h1>
-      <p>今天想做哪件事？慢慢來，我們一步一步做。</p>
-      <span class="v3-day"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
-          <path d="M3.5 9.8h17M8 3v4M16 3v4"/>
-        </svg>
-        週一 · 上午（示意）</span>
+    <div class="env">
+      <div class="airmail" aria-hidden="true"></div>
+      <div class="envbody">
+        <div class="svcno">SVC-01 · 醫療類</div>
+        <h2>銀髮族醫療補助 <span class="demo">示意</span></h2>
+        <p>年滿 65 歲、符合收入條件者，門診自費與部分藥費可申領補助。</p>
+        <span class="mins">約 8 分鐘申辦</span>
+        <button>開始申辦</button>
+      </div>
+    </div>
+    <div class="env">
+      <div class="airmail" aria-hidden="true"></div>
+      <div class="envbody">
+        <div class="svcno">SVC-02 · 照顧類</div>
+        <h2>長照服務券 <span class="demo">示意</span></h2>
+        <p>評估達中度以上照顧需求者，可點用居家照顧、復健訓練、日間照顧等服務。</p>
+        <span class="mins">約 12 分鐘申辦</span>
+        <button>開始申辦</button>
+      </div>
+    </div>
+    <div class="env">
+      <div class="airmail" aria-hidden="true"></div>
+      <div class="envbody">
+        <div class="svcno">SVC-03 · 住宅類</div>
+        <h2>住宅安全改造補助 <span class="demo">示意</span></h2>
+        <p>家中加裝扶手、防滑、夜燈等安全設施，符合條件者補助材料與工費。</p>
+        <span class="mins">約 10 分鐘申辦</span>
+        <button>開始申辦</button>
+      </div>
     </div>
 
-    <div class="v3-voice">
-      <span class="v3-voice__icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M11 5.2L6.5 8.7H3.5v6.6h3L11 18.8z" fill="currentColor"/>
-            <path d="M14.8 9.4a4.3 4.3 0 010 5.2M17.4 6.8a8 8 0 010 10.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-      </span>
-      <span class="v3-voice__txt"><b>開啟語音說明</b><span class="v3-voice__sub">申辦時，每一步都會讀出來給你聽</span></span>
-      <button class="v3-switch" type="button" role="switch" aria-checked="true" aria-label="語音說明已開啟"><span class="v3-switch__knob"></span></button>
+    <div class="v3-1955">
+      <div class="num">1955</div>
+      <div class="lbl"><b>不確定該申辦哪個？</b><br>直接打電話，有人用聽得懂的話解釋。</div>
+      <button>撥 1955</button>
     </div>
-
-    <h2 class="v3-h">要申辦的服務</h2>
-    <div class="v3-list">
-      <article class="v3-serv">
-        <div class="v3-serv__head">
-          <span class="v3-serv__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3.5 11L12 4l8.5 7"/>
-              <path d="M6 9.5V20h12V9.5"/>
-              <path d="M12 16.2c-1.9-1.5-2.9-2.5-2.9-3.7 0-1 .7-1.7 1.5-1.7.6 0 1.1.3 1.4.8.3-.5.8-.8 1.4-.8.8 0 1.5.7 1.5 1.7 0 1.2-1 2.2-2.9 3.7z" fill="currentColor" stroke="none"/>
-            </svg>
-            </span>
-          <h3>長期照顧服務券</h3>
-        </div>
-        <p class="v3-serv__desc">請照顧服務人員到家中，幫忙洗澡、送餐。</p>
-        <span class="v3-time"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 7.2V12l3.4 2"/>
-          </svg>
-          約 10 分鐘</span>
-        <button class="v3-btn v3-btn--go" type="button">開始申辦<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9.5 5.5L16 12l-6.5 6.5"/>
-          </svg>
-          </button>
-      </article>
-      <article class="v3-serv">
-        <div class="v3-serv__head">
-          <span class="v3-serv__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M12 8v8M8 12h8"/>
-            </svg>
-            </span>
-          <h3>銀髮族醫療補助</h3>
-        </div>
-        <p class="v3-serv__desc">65 歲以上看病，部分費用可以減免。</p>
-        <span class="v3-time"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 7.2V12l3.4 2"/>
-          </svg>
-          約 8 分鐘</span>
-        <button class="v3-btn v3-btn--go" type="button">開始申辦<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9.5 5.5L16 12l-6.5 6.5"/>
-          </svg>
-          </button>
-      </article>
-      <article class="v3-serv">
-        <div class="v3-serv__head">
-          <span class="v3-serv__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3.5 11L12 4l8.5 7"/>
-              <path d="M6 9.5V20h12V9.5"/>
-              <path d="M12 11.8v5.4M9.3 14.5h5.4"/>
-            </svg>
-            </span>
-          <h3>住宅安全改造補助</h3>
-        </div>
-        <p class="v3-serv__desc">浴室防滑、加裝扶手的補助。</p>
-        <span class="v3-time"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 7.2V12l3.4 2"/>
-          </svg>
-          約 12 分鐘</span>
-        <button class="v3-btn v3-btn--go" type="button">開始申辦<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9.5 5.5L16 12l-6.5 6.5"/>
-          </svg>
-          </button>
-      </article>
-    </div>
-
-    <div class="v3-helpbar">
-      <span class="v3-helpbar__icon">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4.5 14v-2a7.5 7.5 0 0115 0v2"/>
-            <rect x="2.8" y="13" width="4.4" height="7" rx="2.2" fill="currentColor" stroke="none"/>
-            <rect x="16.8" y="13" width="4.4" height="7" rx="2.2" fill="currentColor" stroke="none"/>
-            <path d="M19 20a2.6 2.6 0 01-2.6 2.4h-2.2"/>
-          </svg>
-      </span>
-      <span class="v3-helpbar__txt"><b>遇到問題？找真人客服</b><span class="v3-helpbar__sub">週一至週五 9:00–17:00（示意）</span></span>
-      <span class="v3-helpbar__num">1955</span>
-      <button class="v3-btn v3-btn--call" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21.5 16.6v2.6a1.9 1.9 0 01-2.1 1.9 18.6 18.6 0 01-8.1-2.9 18.3 18.3 0 01-5.6-5.6A18.6 18.6 0 012.8 5.4 1.9 1.9 0 014.7 3.3h2.6a1.9 1.9 0 011.9 1.6c.1.9.3 1.8.6 2.7a1.9 1.9 0 01-.4 2L8.3 10.7a15 15 0 005.7 5.7l1.1-1.1a1.9 1.9 0 012-.4c.9.3 1.8.5 2.7.6a1.9 1.9 0 011.7 1.9z"/>
-        </svg>
-        撥打 1955</button>
-    </div>
-
-    <p class="v3-foot">所有內容皆為合成示範資料。服務資訊為示意，正式內容以政府官方網站為準。</p>
+    <footer class="v3-foot">三項服務皆為真實服務類別之示意，名稱、條件、金額與時數以政府官方網站為準。字級與按鍵依高齡者大字標準（本體 ≥18px、按鍵 ≥56px）。本原型僅供選題評審。</footer>
   </div>
 </section>
 </main>
 
 <div class="variant-switcher" role="toolbar" aria-label="變體切換">
-  <button class="vs-btn" data-variant-prev aria-label="上一個變體">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M15 18l-6-6 6-6"/>
-      </svg>
-  </button>
+  <button class="vs-btn" data-variant-prev aria-label="上一個變體"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
   <span class="vs-label" data-variant-label aria-live="polite">1 (引導式申辦精靈)</span>
-  <button class="vs-btn" data-variant-next aria-label="下一個變體">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M9 6l6 6-6 6"/>
-      </svg>
-  </button>
+  <button class="vs-btn" data-variant-next aria-label="下一個變體"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
 </div>
 
 <script>
